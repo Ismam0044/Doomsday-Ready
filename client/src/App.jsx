@@ -22,6 +22,8 @@ export default function App() {
   const [quote, setQuote] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [draftPrerequisites, setDraftPrerequisites] = useState([]);
 
   async function refresh() {
     setBusy(true);
@@ -45,28 +47,40 @@ export default function App() {
   async function save(path, options) { await api(path, options); await refresh(); }
   async function addMovie(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     try {
       await save('/movies', { method: 'POST', body: JSON.stringify({
         title: form.get('title'), releaseYear: Number(form.get('year')), runtime: Number(form.get('runtime')),
         prerequisites: form.getAll('prerequisites').map(Number),
       }) });
-      event.currentTarget.reset();
+      element.reset();
     } catch (problem) { setError(problem.message); }
   }
   async function addCinema(event) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
+    const form = new FormData(element);
     try {
       await save('/cinemas', { method: 'POST', body: JSON.stringify({
         name: form.get('name'), bundleSizes: form.get('sizes').split(',').map((size) => Number(size.trim())),
       }) });
-      event.currentTarget.reset();
+      element.reset();
     } catch (problem) { setError(problem.message); }
   }
   async function toggleWatched(movie) {
     try { await save(`/movies/${movie.id}`, { method: 'PATCH', body: JSON.stringify({ watched: !movie.watched }) }); }
     catch (problem) { setError(problem.message); }
+  }
+  async function savePrerequisites(event, movieId) {
+    event.preventDefault();
+    try {
+      await save(`/movies/${movieId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ prerequisites: draftPrerequisites }),
+      });
+      setEditingId(null);
+    } catch (problem) { setError(problem.message); }
   }
   async function getQuote(event) {
     event.preventDefault(); setQuote(null);
@@ -88,11 +102,18 @@ export default function App() {
           <label>Watch these first<select name="prerequisites" multiple size="2">{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label>
           <button className="solid">Add movie</button>
         </form>
-        <div className="movie-list">{movies.map((movie) => <article className="movie" key={movie.id}>
-          <button className={`tick ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button>
-          <div><h2>{movie.title}</h2><p>{movie.releaseYear} · {duration(movie.runtime)}{movie.prerequisites.length ? ` · after ${movie.prerequisites.map((id) => movies.find((item) => item.id === id)?.title).filter(Boolean).join(', ')}` : ''}</p></div>
-          <span className="watched">{movie.watched ? 'Watched' : 'To watch'}</span>
-        </article>)}</div>
+        <div className="movie-list">{movies.map((movie) => <div className="movie-group" key={movie.id}>
+          <article className="movie">
+            <button className={`tick ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button>
+            <div><h2>{movie.title}</h2><p>{movie.releaseYear} · {duration(movie.runtime)}{movie.prerequisites.length ? ` · after ${movie.prerequisites.map((id) => movies.find((item) => item.id === id)?.title).filter(Boolean).join(', ')}` : ''}</p></div>
+            <button className="edit" onClick={() => { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); }}>Edit prerequisites</button>
+            <span className="watched">{movie.watched ? 'Watched' : 'To watch'}</span>
+          </article>
+          {editingId === movie.id && <form className="prerequisite-edit" onSubmit={(event) => savePrerequisites(event, movie.id)}>
+            <fieldset><legend>What should come before {movie.title}?</legend>{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</fieldset>
+            <button className="solid">Save prerequisites</button><button type="button" className="cancel" onClick={() => setEditingId(null)}>Cancel</button>
+          </form>}
+        </div>)}</div>
       </section>}
       {view === 'Rewatch Plan' && <section>
         <h1>Know what comes first.</h1><p className="intro">A prerequisite-first path to your pick.</p>
