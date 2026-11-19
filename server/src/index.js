@@ -1,6 +1,6 @@
 import express from 'express';
 import { pool } from './db.js';
-import { buildRewatchPlan, hasCircularDependency } from './logic.js';
+import { buildRewatchPlan, hasCircularDependency, quoteBundles } from './logic.js';
 
 const app = express();
 app.use(express.json());
@@ -206,6 +206,83 @@ app.get('/api/movies/:id/rewatch-order', async (request, response) => {
     );
     const plan = buildRewatchPlan(targetId, movieResult.rows, prerequisiteResult.rows);
     response.json({ target: targetResult.rows[0], ...plan });
+  } catch (error) {
+    await sendError(error, response);
+  }
+});
+
+app.get('/api/cinemas', async (_request, response) => {
+  try {
+    const cinemas = await pool.query('SELECT id, name FROM cinemas ORDER BY name');
+    const bundleRows = await pool.query(
+      'SELECT cinema_id, size FROM cinema_bundle_sizes ORDER BY size',
+    );
+    const sizesByCinema = new Map();
+    for (const row of bundleRows.rows) {
+      const sizes = sizesByCinema.get(row.cinema_id) ?? [];
+      sizes.push(row.size);
+      sizesByCinema.set(row.cinema_id, sizes);
+    }
+    response.json(cinemas.rows.map((cinema) => ({
+      ...cinema,
+      bundleSizes: sizesByCinema.get(cinema.id) ?? [],
+    })));
+  } catch (error) {
+    await sendError(error, response);
+  }
+});
+
+app.post('/api/cinemas', async (request, response) => {
+  const client = await pool.connect();
+  try {
+    const name = requiredText(request.body.name, 'Cinema name');
+    const sizes = request.body.bundleSizes;
+    if (!Array.isArray(sizes) || sizes.length < 1 || sizes.length > 10) {
+      throw apiError(400, 'A cinema needs between 1 and 10 bundle sizes.');
+    }
+    if (sizes.some((size) => !Number.isInteger(Number(size)) || Number(size) < 1 || Number(size) > 500)) {
+      throw apiError(400, 'Each bundle size must be a whole number from 1 to 500.');
+    }
+    const bundleSizes = sizes.map(Number);
+    if (new Set(bundleSizes).size !== bundleSizes.length) {
+      throw apiError(400, 'Bundle sizes must be different.');
+    }
+
+    await client.query('BEGIN');
+    const inserted = await client.query(
+      'INSERT INTO cinemas (name) VALUES ($1) RETURNING id', [name],
+    );
+    const id = inserted.rows[0].id;
+    for (const size of bundleSizes) {
+      await client.query(
+        'INSERT INTO cinema_bundle_sizes (cinema_id, size) VALUES ($1, $2)',
+        [id, size],
+      );
+    }
+    await client.query('COMMIT');
+    response.status(201).json({ id, name, bundleSizes });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    await sendError(error, response);
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/cinemas/:id/booking', async (request, response) => {
+  try {
+    const id = integer(request.params.id, 'Cinema ID', 1, Number.MAX_SAFE_INTEGER);
+    const groupSize = integer(request.query.groupSize, 'Group size', 1, 10_000);
+    const cinemaResult = await pool.query('SELECT id, name FROM cinemas WHERE id = $1', [id]);
+    if (cinemaResult.rowCount === 0) throw apiError(404, 'Cinema not found.');
+    const bundleResult = await pool.query(
+      'SELECT size FROM cinema_bundle_sizes WHERE cinema_id = $1 ORDER BY size', [id],
+    );
+    response.json({
+      cinema: cinemaResult.rows[0],
+      groupSize,
+      ...quoteBundles(bundleResult.rows.map((row) => row.size), groupSize),
+    });
   } catch (error) {
     await sendError(error, response);
   }

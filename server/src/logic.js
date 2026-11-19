@@ -56,3 +56,35 @@ export function buildRewatchPlan(targetId, movies, prerequisiteRows) {
     unwatchedRuntime,
   };
 }
+
+export function quoteBundles(bundleSizes, groupSize) {
+  const fewest = new Array(groupSize + 1).fill(Number.POSITIVE_INFINITY);
+  const lastSize = new Array(groupSize + 1).fill(0);
+  fewest[0] = 0;
+
+  for (let seats = 1; seats <= groupSize; seats += 1) {
+    for (const size of bundleSizes) {
+      if (size <= seats && fewest[seats - size] + 1 < fewest[seats]) {
+        fewest[seats] = fewest[seats - size] + 1;
+        lastSize[seats] = size;
+      }
+    }
+  }
+
+  if (!Number.isFinite(fewest[groupSize])) return { possible: false };
+
+  const bundles = new Map();
+  for (let remaining = groupSize; remaining > 0;) {
+    const size = lastSize[remaining];
+    bundles.set(size, (bundles.get(size) ?? 0) + 1);
+    remaining -= size;
+  }
+
+  return {
+    possible: true,
+    bundleCount: fewest[groupSize],
+    bundles: [...bundles.entries()]
+      .sort(([first], [second]) => second - first)
+      .map(([size, count]) => ({ size, count })),
+  };
+}
