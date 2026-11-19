@@ -1,48 +1,37 @@
 # Doomsday Ready
 
-A small full-stack app for building an MCU rewatch list and finding exact opening-night cinema bundles.
+A movie rewatch planner and cinema bundle calculator built for the Blinto full stack assessment.
 
-## Stack
+## Run it
 
-- React + TypeScript + Vite
-- Node.js + Express + TypeScript
-- Neon PostgreSQL (the standard PostgreSQL wire protocol, connected with `pg`)
+Requirements: Node.js 20 or newer and an existing Neon PostgreSQL database.
 
-## Run locally
+1. Copy `.env.example` to `.env` and put your Neon connection string in `DATABASE_URL`. Use the Neon pooled connection string and keep SSL enabled (`sslmode=require`).
+2. Install dependencies from the repository root with `npm install`.
+3. Create the schema and insert the assessment sample movies with `npm run setup`.
+4. In one terminal run `npm run dev:server`; in another run `npm run dev:client` and open `http://localhost:5173`.
+5. Run the logic and expected-results checks with `npm test`. Run the frontend production build with `npm run build`.
 
-1. Link and deploy the Neon project with the CLI. `neon deploy` writes `DATABASE_URL` (pooled app traffic) and `DATABASE_URL_UNPOOLED` (direct migrations) to `.env.local` when `.env` is absent.
-2. Run `npm install` at the repository root.
-3. Run `npm run db:migrate` to apply the checked-in schema migration over the direct connection.
-4. Run `npm run dev` and open the Vite URL shown in the terminal (normally `http://localhost:5173`).
+The API listens on port 3001. The Vite development server forwards `/api` requests to it. `npm start` starts the API outside development. The database remains on Neon.
 
-The API listens on port 3001 by default. Set `PORT` to change it. The Node API uses `pg` with Neon's pooled `DATABASE_URL`; migrations use the direct `DATABASE_URL_UNPOOLED`. The API loads `.env.local` and then `.env`. To point the client to another API origin, set `VITE_API_URL` in the client environment.
+## Assessment API
 
-## Features
+- `POST /api/movies` adds a movie.
+- `GET /api/movies` lists movies.
+- `PATCH /api/movies/:id` updates watched state, movie details, or prerequisites.
+- `GET /api/movies/:id/rewatch-order` returns its prerequisite-first plan.
+- `POST /api/cinemas` adds a cinema and its bundle sizes.
+- `GET /api/cinemas` lists cinemas and bundle sizes.
+- `GET /api/cinemas/:id/booking?groupSize=6` returns an exact minimum-bundle quote or no-match result.
 
-- Add, list, and update movies; mark them watched and maintain prerequisite links.
-- Generate a prerequisite-first rewatch order with progress and remaining runtime.
-- Add cinemas and calculate a minimum-bundle exact seat quote or report that no exact quote exists.
-
-The prerequisite traversal, circular-dependency check, and minimum-bundle calculation use custom code in the API, without libraries that solve those problems.
-
-## API
-
-- `POST /api/movies` — `{ "title", "releaseYear", "runtime", "prerequisites"?, "watched"? }`
-- `GET /api/movies`
-- `PATCH /api/movies/:id` — updates movie fields, including `watched` and `prerequisites`
-- `GET /api/movies/:id/rewatch-order`
-- `POST /api/cinemas` — `{ "name", "bundleSizes": [2, 5] }`
-- `GET /api/cinemas`
-- `GET /api/cinemas/:id/booking?groupSize=6`
-
-Circular prerequisites return HTTP `409` with code `CIRCULAR_DEPENDENCY`. Duplicate titles and cinema names return HTTP `409`.
+The rewatch traversal, cycle check, and bundle calculation are JavaScript implementations in `server/src/logic.js`; none relies on recursive SQL or a solver library. Circular dependencies return HTTP 409 with `CIRCULAR_DEPENDENCY`.
 
 ## Data model
 
 ```mermaid
 erDiagram
-  MOVIES ||--o{ MOVIE_PREREQUISITES : has
-  MOVIES ||--o{ MOVIE_PREREQUISITES : requires
+  MOVIES ||--o{ MOVIE_PREREQUISITES : movie
+  MOVIES ||--o{ MOVIE_PREREQUISITES : prerequisite
   CINEMAS ||--|{ CINEMA_BUNDLE_SIZES : sells
   MOVIES {
     int id PK
@@ -52,27 +41,30 @@ erDiagram
     boolean watched
   }
   MOVIE_PREREQUISITES {
-    int movie_id FK
-    int prerequisite_id FK
+    int movie_id PK, FK
+    int prerequisite_id PK, FK
   }
   CINEMAS {
     int id PK
     string name UK
   }
   CINEMA_BUNDLE_SIZES {
-    int cinema_id FK
-    int size
+    int cinema_id PK, FK
+    int size PK
   }
 ```
 
-## Choices and notes
+## Assumptions
 
-- Movie titles and cinema names are unique under PostgreSQL's default case-sensitive text comparison.
-- The assessment does not specify a year range; this app accepts whole release years from 1888 through 3000.
-- A rewatch order can use any valid order when multiple movies have no dependency ordering between them. The target movie is excluded.
-- If multiple bundle combinations use the same minimum number of bundles, the quote uses the first minimum found by the dynamic-programming pass.
-- AI assistance was used to scaffold and implement the application and README. The core algorithms are custom implementations, not solver-library calls; review and adapt them yourself to meet the assessment's own-work requirement.
+- The assessment gives no release-year limits or runtimes for its example movies. Whole years are accepted, and the sample runtime/year values are set in `server/src/sample-data.js` to make the rewatch plan and remaining-time display usable. The year 2026 and 180 minute runtime for *Avengers: Doomsday* are assumptions.
+- Prerequisites can be changed when creating or editing a movie through the API. On the Movies view, prerequisites are selected when adding a movie.
+- If several valid prerequisite orders exist, the implementation returns a valid depth-first order. Bundle ties use the first minimum solution found by the dynamic program.
+- Unique text values follow PostgreSQL's default case-sensitive comparison.
 
-## Production build
+## AI tools
 
-Run `npm run build` to build the API and client. `npm start` starts the built API. Deploy the static `client/dist` directory to a static host and set its API URL as `VITE_API_URL` at build time.
+AI assistance was used to inspect the assessment, plan the implementation, draft code, and review the expected results. The graph traversal, cycle check, and bundle algorithm are explicit JavaScript written for this project. Please review the implementation and make sure you can explain it as part of your submission.
+
+## Docker Compose bonus
+
+With `.env` configured, run `docker compose up --build`. The web UI is at `http://localhost:5173`; the API is at `http://localhost:3001`. Compose starts only the application containers. PostgreSQL stays on Neon.
