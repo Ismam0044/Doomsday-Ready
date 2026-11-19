@@ -2,18 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
 const posters = {
-  'Iron Man': '78lPtwv72eTNqFW9COBYI0dWDJa.jpg',
-  'Captain America: The First Avenger': 'pmZtj1FKvQqISS6iQbkiLg5TAsr.jpg',
-  'The Avengers': 'RYMX2wcKCBAr24UyPD7xwmjaTn.jpg',
-  'Captain America: Civil War': 'rAGiXaUfPzY7CDEyNKUofk3Kw2e.jpg',
-  'Thor: Ragnarok': 'rzRwTcFvttcMN7olsbYl0a1GCfu.jpg',
-  'Avengers: Infinity War': '7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',
-  'Avengers: Endgame': 'or06FN3Dka5tukK1e9sl16pB3iy.jpg',
+  'Iron Man': 'iron-man.webp',
+  'Captain America: The First Avenger': 'captain-america-the-first-avenger.webp',
+  'The Avengers': 'the-avengers.webp',
+  'Captain America: Civil War': 'captain-america-civil-war.webp',
+  'Thor: Ragnarok': 'thor-ragnarok.webp',
+  'Avengers: Infinity War': 'avengers-infinity-war.webp',
+  'Avengers: Endgame': 'avengers-endgame.webp',
+  'Avengers: Doomsday': 'avengers-doomsday.webp',
 };
 
 const posterUrl = (movie) => {
   const file = posters[movie?.title];
-  return file ? `https://image.tmdb.org/t/p/w780/${file}` : '';
+  return file ? `/posters/${file}` : '';
 };
 const duration = (minutes) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 const pageLinks = [
@@ -49,7 +50,7 @@ export default function App({ initialView = 'Movies' }) {
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draftPrerequisites, setDraftPrerequisites] = useState([]);
-  const [slide, setSlide] = useState(0);
+  const [slide, setSlide] = useState(2);
   const viewRef = useRef(null);
 
   async function refresh() {
@@ -156,21 +157,21 @@ export default function App({ initialView = 'Movies' }) {
 
           <div className="section-heading" data-enter><h2>Your movies</h2><span>{movies.length} in your collection</span></div>
           <details className="add-movie" data-enter><summary>Add a movie</summary><form className="movie-form" onSubmit={addMovie}>
-            <label>Title<input name="title" placeholder="Movie title" required /></label><label>Release year<input name="year" type="number" placeholder="2014" required /></label><label>Runtime (minutes)<input name="runtime" type="number" min="1" max="300" placeholder="121" required /></label><label>Prerequisites<select name="prerequisites" multiple size="3">{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label><button className="red-button" onClick={tap}>Save movie</button>
+            <label>Title<input name="title" placeholder="Movie title" required /></label><label>Release year<input name="year" type="number" placeholder="2014" required /></label><label>Runtime (minutes)<input name="runtime" type="number" min="1" max="300" placeholder="121" required /></label><fieldset className="movie-prerequisite-field"><legend>Watch these first</legend><div className="movie-prerequisite-options">{movies.map((movie) => <label key={movie.id}><input type="checkbox" name="prerequisites" value={movie.id} />{movie.title}</label>)}</div></fieldset><button className="red-button" onClick={tap}>Save movie</button>
           </form></details>
 
           {movies.length ? <div className="poster-grid">{movies.map((movie) => <article className="poster-card" key={movie.id} data-enter>
-            <div className="poster-image"><img src={posterUrl(movie) || undefined} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} /><span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
+            <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
             <h3>{movie.title}</h3><p className="poster-meta">{movie.releaseYear} <i /> {duration(movie.runtime)}</p>
             <details className="prerequisite-details" open={editingId === movie.id} onToggle={(event) => { if (event.currentTarget.open && editingId !== movie.id) { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); } else if (!event.currentTarget.open && editingId === movie.id) setEditingId(null); }}><summary>Edit prerequisites</summary><form onSubmit={(event) => savePrerequisites(event, movie.id)}><div className="prerequisite-options">{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</div><button className="red-button">Save</button></form></details>
           </article>)}</div> : !busy && <p className="empty-state">No movies yet. Add one to get started.</p>}
         </section>}
 
         {view === 'Rewatch Plan' && <section className="inner-page" aria-labelledby="plan-title" data-enter>
-          <p className="eyebrow">YOUR WATCH ORDER</p><h1 id="plan-title">Rewatch plan</h1><p className="page-lead">Pick a movie. We’ll line up the chapters that come before it.</p>
+          <p className="eyebrow">YOUR WATCH ORDER</p><h1 id="plan-title">Rewatch plan</h1><p className="page-lead">Pick a movie. We’ll line up the chapters that come before it.</p><p className="page-note">These example links are for the challenge, not an official MCU watch guide.</p>
           <label className="field-row">Target movie<select value={targetId} onChange={(event) => setTargetId(event.target.value)}>{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label>
           {!movies.length && <p className="empty-state">Add movies to your collection to make a plan.</p>}
-          {plan && <><div className="plan-summary"><div className="plan-numbers"><div><span>WATCHED</span><strong>{plan.watchedCount} of {plan.totalCount}</strong></div><div><span>TIME LEFT</span><strong>{duration(plan.unwatchedRuntime)}</strong></div></div><div className="progress-track"><span style={{ width: `${plan.totalCount ? plan.watchedCount / plan.totalCount * 100 : 0}%` }} /></div></div>
+          {plan && <><div className="plan-summary"><div className="plan-numbers"><div><span>WATCHED</span><strong>{plan.watchedCount} of {plan.totalCount}</strong></div><div><span>TIME LEFT</span><strong>{duration(plan.unwatchedRuntime)}</strong></div></div><div className="progress-track" role="progressbar" aria-label="Rewatch progress" aria-valuemin="0" aria-valuemax={Math.max(plan.totalCount, 1)} aria-valuenow={plan.watchedCount}><span style={{ width: `${plan.totalCount ? plan.watchedCount / plan.totalCount * 100 : 0}%` }} /></div></div>
             {plan.movies.length ? <ol className="rewatch-list">{plan.movies.map((movie) => <li key={movie.id}><button className={`watched-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button><div><h2>{movie.title}</h2><p>{movie.releaseYear} · {duration(movie.runtime)}</p></div><span>{movie.watched ? 'WATCHED' : 'TO WATCH'}</span></li>)}</ol> : <p className="empty-state">No earlier movies in this plan.</p>}
             <p className="plan-target">Then: <strong>{plan.target.title}</strong></p>
           </>}

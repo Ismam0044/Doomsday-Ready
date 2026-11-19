@@ -16,6 +16,10 @@ Requirements: Node.js 20 or newer and an existing Neon PostgreSQL database.
 
 The API listens on port 3001. The Vite development server forwards `/api` requests to it. `npm start` starts the API outside development. The database remains on Neon.
 
+## Movie posters
+
+Place your poster artwork in `client/public/posters` using the filenames listed in that folder's README. The app serves those local images directly; missing posters use a title treatment until you add the files.
+
 ## Assessment API
 
 - `POST /api/movies` adds a movie.
