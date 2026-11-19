@@ -47,14 +47,21 @@ export default function App({ initialView = 'Movies' }) {
     api(`/movies/${targetId}/rewatch-order`).then(setPlan).catch((problem) => setError(problem.message));
   }, [targetId, movies]);
   useEffect(() => {
-    if (!viewRef.current) return undefined;
-    const context = gsap.context(() => {
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      gsap.fromTo('[data-enter]',
-        { y: reduceMotion ? 0 : 14, opacity: 0 },
-        { y: 0, opacity: 1, duration: reduceMotion ? 0 : 0.48, stagger: 0.07, ease: 'power2.out', clearProps: 'transform' },
-      );
-    }, viewRef);
+    const scope = viewRef.current;
+    if (!scope) return undefined;
+
+    let context;
+    try {
+      context = gsap.context(() => {
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        gsap.fromTo(scope.querySelectorAll('[data-enter]'),
+          { y: reduceMotion ? 0 : 14, opacity: 0 },
+          { y: 0, opacity: 1, duration: reduceMotion ? 0 : 0.48, stagger: 0.07, ease: 'power2.out', clearProps: 'transform' },
+        );
+      }, scope);
+    } catch {
+      return undefined;
+    }
     return () => context.revert();
   }, [view, busy, movies, plan, quote, editingId]);
 
