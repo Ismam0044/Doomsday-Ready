@@ -2,6 +2,8 @@
 
 A movie rewatch planner and cinema bundle calculator built for the Blinto full stack assessment.
 
+The client uses React, Vite, Tailwind CSS, and GSAP. Its theatre-inspired film presentation takes cues from the film-first marquee on the [TCL Chinese Theatres site](https://www.tclchinesetheatres.com/).
+
 ## Run it
 
 Requirements: Node.js 20 or newer and an existing Neon PostgreSQL database.
