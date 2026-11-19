@@ -6,7 +6,7 @@ if (!process.env.DATABASE_URL) {
   throw new Error('Set DATABASE_URL in the root .env file before running setup.');
 }
 
-const databaseUrl = new URL(process.env.DATABASE_URL);
+const databaseUrl = new URL(process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL);
 if (!['localhost', '127.0.0.1'].includes(databaseUrl.hostname)) {
   databaseUrl.searchParams.set('sslmode', 'verify-full');
 }
