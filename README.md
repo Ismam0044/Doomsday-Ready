@@ -11,7 +11,7 @@ Requirements: Node.js 20 or newer and an existing Neon PostgreSQL database.
 1. Copy `.env.example` to `.env` and put your Neon connection string in `DATABASE_URL`. Use the Neon pooled connection string and keep SSL enabled (`sslmode=require`).
 2. Install dependencies from the repository root with `npm install`.
 3. Create the schema and insert the assessment sample movies with `npm run setup`.
-4. In one terminal run `npm run dev:server`; in another run `npm run dev:client` and open `http://localhost:5173`.
+4. In one terminal run `npm run dev:server`; in another run `npm run dev:client`. Open `http://localhost:5173/` for Movies, `/rewatch.html` for Rewatch Plan, and `/booking.html` for Booking. Each view is a separate page with full-page navigation.
 5. Run the logic and expected-results checks with `npm test`. Run the frontend production build with `npm run build`.
 
 The API listens on port 3001. The Vite development server forwards `/api` requests to it. `npm start` starts the API outside development. The database remains on Neon.

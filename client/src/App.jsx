@@ -13,8 +13,8 @@ const api = (path, options = {}) => fetch(`/api${path}`, {
 const duration = (minutes) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 const views = ['Movies', 'Rewatch Plan', 'Booking'];
 
-export default function App() {
-  const [view, setView] = useState('Movies');
+export default function App({ initialView = 'Movies' }) {
+  const view = initialView;
   const [movies, setMovies] = useState([]);
   const [cinemas, setCinemas] = useState([]);
   const [targetId, setTargetId] = useState('');
@@ -112,7 +112,7 @@ export default function App() {
     </header>
     <nav className="main-nav flex items-center" aria-label="Views">
       <span className="nav-overline">YOUR NIGHT</span>
-      {views.map((item, index) => <button className={`nav-link ${view === item ? 'is-active' : ''}`} key={item} onClick={(event) => { tap(event); setView(item); setError(''); }}><span>{item}</span><small>0{index + 1}</small></button>)}
+      {views.map((item, index) => <a className={`nav-link ${view === item ? 'is-active' : ''}`} key={item} href={item === 'Movies' ? '/' : item === 'Rewatch Plan' ? '/rewatch.html' : '/booking.html'} aria-current={view === item ? 'page' : undefined}><span>{item}</span><small>0{index + 1}</small></a>)}
       <span className="nav-status"><i /> THE COUNTDOWN IS ON</span>
     </nav>
 
