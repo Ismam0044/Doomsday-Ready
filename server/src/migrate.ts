@@ -14,9 +14,13 @@ if (connectionString.includes('-pooler')) {
   throw new Error('Migrations require the direct DATABASE_URL_UNPOOLED connection, not the pooled endpoint.');
 }
 
+const directUrl = new URL(connectionString);
+if (!['localhost', '127.0.0.1'].includes(directUrl.hostname)) {
+  directUrl.searchParams.set('sslmode', 'verify-full');
+}
+
 const pool = new pg.Pool({
-  connectionString,
-  ssl: connectionString.includes('localhost') ? undefined : { rejectUnauthorized: false },
+  connectionString: directUrl.toString(),
   max: 1,
 });
 

@@ -11,8 +11,12 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is required. Run `neon env pull` or set it in the project .env.local file.');
 }
 
+const pooledUrl = new URL(process.env.DATABASE_URL);
+if (!['localhost', '127.0.0.1'].includes(pooledUrl.hostname)) {
+  pooledUrl.searchParams.set('sslmode', 'verify-full');
+}
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL.includes('localhost') ? undefined : { rejectUnauthorized: false },
+  connectionString: pooledUrl.toString(),
   max: 5,
 });
