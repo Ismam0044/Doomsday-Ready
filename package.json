@@ -1,0 +1,24 @@
+{
+  "name": "doomsday-ready",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "db:migrate": "npm --workspace server run db:migrate",
+    "build": "npm run build --workspace server && npm run build --workspace client",
+    "start": "npm --workspace server run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "@neon/config": "^1.14.4",
+    "@neon/env": "^2.1.7"
+  }
+}

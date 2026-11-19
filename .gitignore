@@ -1,0 +1,9 @@
+node_modules
+dist
+.neon
+.neon-config/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
