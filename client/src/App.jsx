@@ -1,17 +1,40 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
-const api = (path, options = {}) => fetch(`/api${path}`, {
-  ...options,
-  headers: { 'Content-Type': 'application/json', ...options.headers },
-}).then(async (response) => {
+const posters = {
+  'Iron Man': '78lPtwv72eTNqFW9COBYI0dWDJa.jpg',
+  'Captain America: The First Avenger': 'pmZtj1FKvQqISS6iQbkiLg5TAsr.jpg',
+  'The Avengers': 'RYMX2wcKCBAr24UyPD7xwmjaTn.jpg',
+  'Captain America: Civil War': 'rAGiXaUfPzY7CDEyNKUofk3Kw2e.jpg',
+  'Thor: Ragnarok': 'rzRwTcFvttcMN7olsbYl0a1GCfu.jpg',
+  'Avengers: Infinity War': '7WsyChQLEftFiDOVTGkv3hFpyyt.jpg',
+  'Avengers: Endgame': 'or06FN3Dka5tukK1e9sl16pB3iy.jpg',
+};
+
+const posterUrl = (movie) => {
+  const file = posters[movie?.title] || posters['Avengers: Endgame'];
+  return `https://image.tmdb.org/t/p/w780/${file}`;
+};
+const duration = (minutes) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+const pageLinks = [
+  { title: 'Movies', href: '/' },
+  { title: 'Rewatch Plan', href: '/rewatch.html' },
+  { title: 'Booking', href: '/booking.html' },
+];
+
+async function api(path, options = {}) {
+  const response = await fetch(`/api${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+  });
+  const type = response.headers.get('content-type') || '';
+  if (!type.includes('application/json')) {
+    throw new Error('The API did not return JSON. Restart the server and refresh this page.');
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Something went wrong.');
   return data;
-});
-
-const duration = (minutes) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-const views = ['Movies', 'Rewatch Plan', 'Booking'];
+}
 
 export default function App({ initialView = 'Movies' }) {
   const view = initialView;
@@ -26,6 +49,7 @@ export default function App({ initialView = 'Movies' }) {
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draftPrerequisites, setDraftPrerequisites] = useState([]);
+  const [slide, setSlide] = useState(0);
   const viewRef = useRef(null);
 
   async function refresh() {
@@ -49,21 +73,22 @@ export default function App({ initialView = 'Movies' }) {
   useEffect(() => {
     const scope = viewRef.current;
     if (!scope) return undefined;
-
     let context;
     try {
       context = gsap.context(() => {
         const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
         gsap.fromTo(scope.querySelectorAll('[data-enter]'),
-          { y: reduceMotion ? 0 : 14, opacity: 0 },
-          { y: 0, opacity: 1, duration: reduceMotion ? 0 : 0.48, stagger: 0.07, ease: 'power2.out', clearProps: 'transform' },
+          { y: reduceMotion ? 0 : 10, opacity: 0 },
+          { y: 0, opacity: 1, duration: reduceMotion ? 0 : 0.35, stagger: 0.045, ease: 'power2.out', clearProps: 'transform' },
         );
       }, scope);
-    } catch {
-      return undefined;
-    }
+    } catch { return undefined; }
     return () => context.revert();
-  }, [view, busy, movies, plan, quote, editingId]);
+  }, [view, busy, movies, plan, quote, editingId, slide]);
+
+  const heroMovies = movies.slice(-3);
+  const heroMovie = heroMovies[slide % Math.max(heroMovies.length, 1)];
+  const shiftSlide = (next) => setSlide((current) => (current + next + Math.max(heroMovies.length, 1)) % Math.max(heroMovies.length, 1));
 
   async function save(path, options) { await api(path, options); await refresh(); }
   async function addMovie(event) {
@@ -106,70 +131,59 @@ export default function App({ initialView = 'Movies' }) {
     catch (problem) { setError(problem.message); }
   }
   function tap(event) {
-    const target = event.currentTarget;
-    gsap.fromTo(target, { scale: 0.96 }, { scale: 1, duration: 0.32, ease: 'back.out(2)' });
+    gsap.fromTo(event.currentTarget, { scale: 0.97 }, { scale: 1, duration: 0.24, ease: 'power2.out' });
   }
 
   return <div className="app-shell min-h-screen">
-    <div className="filmstrip" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div>
-    <header className="masthead flex items-center justify-between">
-      <a className="brand" href="#home" aria-label="Doomsday Ready home"><span className="brand-mark">DR</span><span className="brand-name">DOOMSDAY <b>READY</b></span></a>
-      <p className="masthead-note">A rewatch guide for the big screen.</p>
-      <span className="masthead-edition">HOLLYWOOD · EST. 1927</span>
+    <header className="site-header">
+      <a className="brand" href="/" aria-label="Doomsday Ready home"><span className="brand-icon">D</span><span className="brand-copy"><b>DOOMSDAY</b><span>READY</span></span></a>
+      <nav className="site-nav" aria-label="Main navigation">{pageLinks.map((link) => <a key={link.href} href={link.href} className={link.title === view ? 'active' : ''} aria-current={link.title === view ? 'page' : undefined}>{link.title}</a>)}</nav>
     </header>
-    <nav className="main-nav flex items-center" aria-label="Views">
-      <span className="nav-overline">YOUR NIGHT</span>
-      {views.map((item, index) => <a className={`nav-link ${view === item ? 'is-active' : ''}`} key={item} href={item === 'Movies' ? '/' : item === 'Rewatch Plan' ? '/rewatch.html' : '/booking.html'} aria-current={view === item ? 'page' : undefined}><span>{item}</span><small>0{index + 1}</small></a>)}
-      <span className="nav-status"><i /> THE COUNTDOWN IS ON</span>
-    </nav>
 
-    <main className="content-shell">
+    <main className="site-main mx-auto w-full">
       {error && <p className="error-note" role="alert">{error}</p>}
-      {busy ? <div className="loading-note"><span className="loading-star">✳</span> Pulling the house lights down…</div> : <div ref={viewRef} key={view}>
+      {busy ? <p className="loading-note">Loading your movies…</p> : <div ref={viewRef} key={view}>
         {view === 'Movies' && <section aria-labelledby="movies-title">
-          <div className="view-kicker" data-enter><span>01 / THE ARCHIVE</span><i /></div>
-          <div className="hero-grid">
-            <div className="hero-copy" data-enter><p className="tiny-label">THE MARVEL REWATCH, YOUR WAY</p><h1 id="movies-title">Before the<br /><em>curtain rises.</em></h1><p>Set the scene. Mark what you’ve seen. We’ll keep the story straight.</p></div>
-            <div className="hero-poster" aria-label="Doomsday Ready feature card" data-enter><div className="poster-rule"><span>ONE NIGHT</span><span>ONE BIG STORY</span></div><div className="poster-art"><div className="poster-sun" /><div className="poster-spire" /><div className="poster-spire second" /><div className="poster-horizon" /></div><div className="poster-title"><small>THE ROAD TO</small><strong>DOOMSDAY</strong><span>THE STORY SO FAR</span></div><span className="poster-number">№ 01</span></div>
+          <div className="hero-wrap" data-enter>
+            {heroMovies.length > 1 && <><div className="hero-side left" style={{ backgroundImage: `url(${posterUrl(heroMovies[(slide + heroMovies.length - 1) % heroMovies.length])})` }} /><div className="hero-side right" style={{ backgroundImage: `url(${posterUrl(heroMovies[(slide + 1) % heroMovies.length])})` }} /></>}
+            <div className="hero-carousel">
+              <div className="hero-image" style={heroMovie ? { backgroundImage: `url(${posterUrl(heroMovie)})` } : undefined} />
+              <div className="hero-shade" />
+              <div className="hero-copy"><span className="eyebrow">DOOMSDAY READY</span><p>Make a night of it.</p><h1 id="movies-title">{heroMovie?.title || 'Your next movie night starts here'}</h1><a className="light-button" href="/rewatch.html">Build your rewatch plan</a></div>
+              {heroMovies.length > 1 && <div className="hero-controls"><button aria-label="Previous featured movie" onClick={() => shiftSlide(-1)}>‹</button>{heroMovies.map((movie, index) => <button key={movie.id} className={`hero-dot ${slide === index ? 'selected' : ''}`} aria-label={`Show ${movie.title}`} onClick={() => setSlide(index)} />)}<button aria-label="Next featured movie" onClick={() => shiftSlide(1)}>›</button></div>}
+            </div>
           </div>
-          <div className="section-title" data-enter><div><span className="tiny-label">YOUR COLLECTION</span><h2>The films <sup>{String(movies.length).padStart(2, '0')}</sup></h2></div><span className="section-aside">A few chapters at a time.</span></div>
-          <form className="add-form" onSubmit={addMovie} data-enter>
-            <label>Movie title<input name="title" placeholder="Add a film to the list" required /></label>
-            <label>Release year<input name="year" type="number" placeholder="2014" required /></label>
-            <label>Runtime<input name="runtime" type="number" min="1" max="300" placeholder="121 min" required /></label>
-            <label>Watch these first<select name="prerequisites" multiple size="2">{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label>
-            <button className="gold-button" onClick={tap}>Add to the list <span>↗</span></button>
-          </form>
-          {movies.length ? <div className="movie-list">{movies.map((movie, index) => <div className="movie-group" key={movie.id} data-enter>
-            <article className="movie-row">
-              <span className="movie-index">{String(index + 1).padStart(2, '0')}</span>
-              <button className={`watched-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={(event) => { tap(event); toggleWatched(movie); }}>{movie.watched ? '✓' : ''}</button>
-              <div className="movie-info"><h3>{movie.title}</h3><p>{movie.releaseYear} <i /> {duration(movie.runtime)}{movie.prerequisites.length ? <><i /> AFTER {movie.prerequisites.map((id) => movies.find((item) => item.id === id)?.title).filter(Boolean).join(' · ')}</> : null}</p></div>
-              <button className="edit-link" onClick={() => { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); }}>{editingId === movie.id ? 'Editing' : 'Edit order'}</button>
-              <span className="watch-label">{movie.watched ? 'SEEN' : 'TO SEE'}</span>
-            </article>
-            {editingId === movie.id && <form className="prerequisite-edit" onSubmit={(event) => savePrerequisites(event, movie.id)}><fieldset><legend>What belongs before {movie.title}?</legend>{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</fieldset><button className="gold-button">Save order <span>↗</span></button><button type="button" className="cancel-link" onClick={() => setEditingId(null)}>Keep as is</button></form>}
-          </div>)}</div> : <div className="empty-slate" data-enter><p>No films in the lobby yet.</p><span>Start with one you already love.</span></div>}
+
+          <div className="section-heading" data-enter><h2>Your movies</h2><span>{movies.length} in your collection</span></div>
+          <details className="add-movie" data-enter><summary>Add a movie</summary><form className="movie-form" onSubmit={addMovie}>
+            <label>Title<input name="title" placeholder="Movie title" required /></label><label>Release year<input name="year" type="number" placeholder="2014" required /></label><label>Runtime (minutes)<input name="runtime" type="number" min="1" max="300" placeholder="121" required /></label><label>Prerequisites<select name="prerequisites" multiple size="3">{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label><button className="red-button" onClick={tap}>Save movie</button>
+          </form></details>
+
+          {movies.length ? <div className="poster-grid">{movies.map((movie) => <article className="poster-card" key={movie.id} data-enter>
+            <div className="poster-image"><img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} /><span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
+            <h3>{movie.title}</h3><p className="poster-meta">{movie.releaseYear} <i /> {duration(movie.runtime)}</p>
+            <details className="prerequisite-details" open={editingId === movie.id} onToggle={(event) => { if (event.currentTarget.open && editingId !== movie.id) { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); } else if (!event.currentTarget.open && editingId === movie.id) setEditingId(null); }}><summary>Edit prerequisites</summary><form onSubmit={(event) => savePrerequisites(event, movie.id)}><div className="prerequisite-options">{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</div><button className="red-button">Save</button></form></details>
+          </article>)}</div> : !busy && <p className="empty-state">No movies yet. Add one to get started.</p>}
         </section>}
 
-        {view === 'Rewatch Plan' && <section aria-labelledby="plan-title">
-          <div className="view-kicker" data-enter><span>02 / THE ROAD BACK</span><i /></div><div className="page-intro" data-enter><p className="tiny-label">A GOOD STORY HAS A RIGHT ORDER</p><h1 id="plan-title">The path to<br /><em>the premiere.</em></h1><p>Pick a destination. We’ll gather the chapters that lead there.</p></div>
-          <label className="target-select" data-enter><span>DESTINATION</span><select value={targetId} onChange={(event) => setTargetId(event.target.value)}>{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select><span className="select-arrow">⌄</span></label>
-          {!movies.length && <div className="empty-slate" data-enter><p>Nothing on the marquee yet.</p><span>Add a movie on the Movies view and come back.</span></div>}
-          {plan && <><div className="plan-card" data-enter><div className="plan-stats"><div><span>YOUR REWATCH</span><strong>{plan.totalCount}<small> films</small></strong></div><div><span>ALREADY SEEN</span><strong>{plan.watchedCount}<small> / {plan.totalCount}</small></strong></div><div><span>STILL AHEAD</span><strong>{duration(plan.unwatchedRuntime)}</strong></div></div><div className="progress-track"><span style={{ width: `${plan.totalCount ? plan.watchedCount / plan.totalCount * 100 : 0}%` }} /></div><p className="progress-caption">{plan.watchedCount} of {plan.totalCount} watched</p></div>
-            {plan.movies.length ? <div className="movie-list plan-list">{plan.movies.map((movie, index) => <article className="movie-row" key={movie.id} data-enter><span className="movie-index">{String(index + 1).padStart(2, '0')}</span><button className={`watched-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={(event) => { tap(event); toggleWatched(movie); }}>{movie.watched ? '✓' : ''}</button><div className="movie-info"><h3>{movie.title}</h3><p>{movie.releaseYear} <i /> {duration(movie.runtime)}</p></div><span className="watch-label">{movie.watched ? 'SEEN' : 'TO SEE'}</span></article>)}</div> : <div className="empty-slate" data-enter><p>You can start here.</p><span>{plan.target.title} has no earlier chapters in your collection.</span></div>}
-            <div className="finale-card" data-enter><span>AND THEN, THE MAIN EVENT</span><strong>{plan.target.title}</strong><small>{plan.target.releaseYear} <i /> {duration(plan.target.runtime)}</small></div>
+        {view === 'Rewatch Plan' && <section className="inner-page" aria-labelledby="plan-title" data-enter>
+          <p className="eyebrow">YOUR WATCH ORDER</p><h1 id="plan-title">Rewatch plan</h1><p className="page-lead">Pick a movie. We’ll line up the chapters that come before it.</p>
+          <label className="field-row">Target movie<select value={targetId} onChange={(event) => setTargetId(event.target.value)}>{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label>
+          {!movies.length && <p className="empty-state">Add movies to your collection to make a plan.</p>}
+          {plan && <><div className="plan-summary"><div className="plan-numbers"><div><span>WATCHED</span><strong>{plan.watchedCount} of {plan.totalCount}</strong></div><div><span>TIME LEFT</span><strong>{duration(plan.unwatchedRuntime)}</strong></div></div><div className="progress-track"><span style={{ width: `${plan.totalCount ? plan.watchedCount / plan.totalCount * 100 : 0}%` }} /></div></div>
+            {plan.movies.length ? <ol className="rewatch-list">{plan.movies.map((movie) => <li key={movie.id}><button className={`watched-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button><div><h2>{movie.title}</h2><p>{movie.releaseYear} · {duration(movie.runtime)}</p></div><span>{movie.watched ? 'WATCHED' : 'TO WATCH'}</span></li>)}</ol> : <p className="empty-state">No earlier movies in this plan.</p>}
+            <p className="plan-target">Then: <strong>{plan.target.title}</strong></p>
           </>}
         </section>}
 
-        {view === 'Booking' && <section aria-labelledby="booking-title">
-          <div className="view-kicker" data-enter><span>03 / OPENING NIGHT</span><i /></div><div className="page-intro" data-enter><p className="tiny-label">SAME SCREEN. SAME STORY.</p><h1 id="booking-title">Bring your<br /><em>whole crew.</em></h1><p>Choose a cinema, tell us how many, and we’ll make the seats add up.</p></div>
-          <div className="booking-grid"><form className="paper-form" onSubmit={addCinema} data-enter><span className="form-index">A / CINEMA</span><h2>Add your theatre</h2><p>We’ll remember the bundles it sells.</p><label>CINEMA NAME<input name="name" placeholder="e.g. The Grand" required /></label><label>BUNDLE SIZES<input name="sizes" placeholder="2, 4, 6" required /></label><button className="gold-button" onClick={tap}>Save cinema <span>↗</span></button></form>
-            <form className="paper-form quote-form" onSubmit={getQuote} data-enter><span className="form-index">B / SEAT PLAN</span><h2>Find your fit</h2><p>No empty seats. No one left outside.</p><label>CINEMA<select value={cinemaId} onChange={(event) => { setCinemaId(event.target.value); setQuote(null); }} required><option value="" disabled>Choose a cinema</option>{cinemas.map((cinema) => <option value={cinema.id} key={cinema.id}>{cinema.name} · {cinema.bundleSizes.join(', ')}</option>)}</select></label><label>PEOPLE IN YOUR GROUP<input type="number" min="1" max="10000" value={groupSize} onChange={(event) => setGroupSize(event.target.value)} required /></label><button className="gold-button" disabled={!cinemas.length} onClick={tap}>Show seat plan <span>↗</span></button></form></div>
-          {quote && <div className="quote-result" data-enter><div><span className="tiny-label">YOUR SEAT MATH</span><h2>{quote.possible ? `${quote.bundleCount} bundles` : 'No exact fit this time.'}</h2></div>{quote.possible ? <div className="bundle-list">{quote.bundles.map((bundle) => <p key={bundle.size}><span>{bundle.size} seats</span><strong>× {bundle.count}</strong></p>)}</div> : <p>Try a different group size or cinema. We’ll find the right combination.</p>}</div>}
+        {view === 'Booking' && <section className="inner-page" aria-labelledby="booking-title" data-enter>
+          <p className="eyebrow">OPENING NIGHT</p><h1 id="booking-title">Plan your group booking</h1><p className="page-lead">Add a cinema’s bundles, then check the exact fit for your group.</p>
+          <div className="booking-layout"><form className="booking-card" onSubmit={addCinema}><h2>Add a cinema</h2><label>Cinema name<input name="name" placeholder="Cinema name" required /></label><label>Bundle sizes<input name="sizes" placeholder="2, 4, 6" required /></label><button className="red-button" onClick={tap}>Save cinema</button></form>
+            <form className="booking-card" onSubmit={getQuote}><h2>Find bundles</h2><label>Cinema<select value={cinemaId} onChange={(event) => { setCinemaId(event.target.value); setQuote(null); }} required><option value="" disabled>Choose a cinema</option>{cinemas.map((cinema) => <option value={cinema.id} key={cinema.id}>{cinema.name} · {cinema.bundleSizes.join(', ')}</option>)}</select></label><label>Group size<input type="number" min="1" max="10000" value={groupSize} onChange={(event) => setGroupSize(event.target.value)} required /></label><button className="red-button" disabled={!cinemas.length} onClick={tap}>Get quote</button></form></div>
+          {quote && <div className="quote-result"><h2>{quote.possible ? `${quote.bundleCount} bundles` : 'Not possible'}</h2>{quote.possible ? quote.bundles.map((bundle) => <p key={bundle.size}>{bundle.size} seats <strong>× {bundle.count}</strong></p>) : <p>Those bundles don’t add up to exactly {groupSize} seats.</p>}</div>}
         </section>}
       </div>}
     </main>
-    <footer className="site-footer"><span>DOOMSDAY READY</span><span>MAKE THE NIGHT COUNT <i>✳</i></span></footer>
+    <footer className="site-footer"><span>DOOMSDAY READY</span><span>Movies · Rewatch plan · Booking</span></footer>
   </div>;
 }
