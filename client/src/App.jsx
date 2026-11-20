@@ -52,24 +52,28 @@ export default function App({ initialView = 'Movies' }) {
   const [draftPrerequisites, setDraftPrerequisites] = useState([]);
   const viewRef = useRef(null);
 
-  async function refresh() {
-    setBusy(true);
+  async function refresh(showLoading = false) {
+    setBusy(showLoading);
     try {
-      const [movieRows, cinemaRows] = await Promise.all([api('/movies'), api('/cinemas')]);
-      setMovies(movieRows);
-      setCinemas(cinemaRows);
-      setTargetId((current) => current || String(movieRows.at(-1)?.id || ''));
-      setCinemaId((current) => current || String(cinemaRows[0]?.id || ''));
+      if (view === 'Booking') {
+        const cinemaRows = await api('/cinemas');
+        setCinemas(cinemaRows);
+        setCinemaId((current) => current || String(cinemaRows[0]?.id || ''));
+      } else {
+        const movieRows = await api('/movies');
+        setMovies(movieRows);
+        setTargetId((current) => current || String(movieRows.at(-1)?.id || ''));
+      }
       setError('');
     } catch (problem) { setError(problem.message); }
-    finally { setBusy(false); }
+    finally { if (showLoading) setBusy(false); }
   }
 
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(true); }, []);
   useEffect(() => {
-    if (!targetId) return setPlan(null);
+    if (view !== 'Rewatch Plan' || !targetId) return setPlan(null);
     api(`/movies/${targetId}/rewatch-order`).then(setPlan).catch((problem) => setError(problem.message));
-  }, [targetId, movies]);
+  }, [view, targetId, movies]);
   useEffect(() => {
     const scope = viewRef.current;
     if (!scope) return undefined;

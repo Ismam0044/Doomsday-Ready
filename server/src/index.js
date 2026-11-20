@@ -85,21 +85,30 @@ function asyncRoute(handler) {
 
 app.get('/api/movies', asyncRoute(async (_request, response) => {
   try {
-    const movies = await pool.query(`
-      SELECT id, title, release_year AS "releaseYear", runtime, watched
-      FROM movies ORDER BY release_year, title
+    const result = await pool.query(`
+      SELECT m.id, m.title, m.release_year AS "releaseYear", m.runtime, m.watched,
+             p.prerequisite_id AS "prerequisiteId"
+      FROM movies m
+      LEFT JOIN movie_prerequisites p ON p.movie_id = m.id
+      ORDER BY m.release_year, m.title, p.prerequisite_id
     `);
-    const prerequisites = await pool.query('SELECT movie_id, prerequisite_id FROM movie_prerequisites');
-    const byMovie = new Map();
-    for (const row of prerequisites.rows) {
-      const list = byMovie.get(row.movie_id) ?? [];
-      list.push(row.prerequisite_id);
-      byMovie.set(row.movie_id, list);
+    const moviesById = new Map();
+    for (const row of result.rows) {
+      let movie = moviesById.get(row.id);
+      if (!movie) {
+        movie = {
+          id: row.id,
+          title: row.title,
+          releaseYear: row.releaseYear,
+          runtime: row.runtime,
+          watched: row.watched,
+          prerequisites: [],
+        };
+        moviesById.set(row.id, movie);
+      }
+      if (row.prerequisiteId !== null) movie.prerequisites.push(row.prerequisiteId);
     }
-    response.json(movies.rows.map((movie) => ({
-      ...movie,
-      prerequisites: byMovie.get(movie.id) ?? [],
-    })));
+    response.json([...moviesById.values()]);
   } catch (error) {
     await sendError(error, response);
   }
@@ -200,20 +209,29 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
 app.get('/api/movies/:id/rewatch-order', asyncRoute(async (request, response) => {
   try {
     const targetId = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
-    const targetResult = await pool.query(`
-      SELECT id, title, release_year AS "releaseYear", runtime, watched
-      FROM movies WHERE id = $1
-    `, [targetId]);
-    if (targetResult.rowCount === 0) throw apiError(404, 'Movie not found.');
-
-    const movieResult = await pool.query(`
-      SELECT id, title, release_year AS "releaseYear", runtime, watched FROM movies
+    const result = await pool.query(`
+      SELECT m.id, m.title, m.release_year AS "releaseYear", m.runtime, m.watched,
+             p.movie_id AS "movieId", p.prerequisite_id AS "prerequisiteId"
+      FROM movies m
+      LEFT JOIN movie_prerequisites p ON p.movie_id = m.id
+      ORDER BY m.id, p.prerequisite_id
     `);
-    const prerequisiteResult = await pool.query(
-      'SELECT movie_id, prerequisite_id FROM movie_prerequisites',
-    );
-    const plan = buildRewatchPlan(targetId, movieResult.rows, prerequisiteResult.rows);
-    response.json({ target: targetResult.rows[0], ...plan });
+    const moviesById = new Map();
+    const prerequisites = [];
+    for (const row of result.rows) {
+      let movie = moviesById.get(row.id);
+      if (!movie) {
+        movie = { id: row.id, title: row.title, releaseYear: row.releaseYear, runtime: row.runtime, watched: row.watched };
+        moviesById.set(row.id, movie);
+      }
+      if (row.prerequisiteId !== null) {
+        prerequisites.push({ movie_id: row.movieId, prerequisite_id: row.prerequisiteId });
+      }
+    }
+    const target = moviesById.get(targetId);
+    if (!target) throw apiError(404, 'Movie not found.');
+    const plan = buildRewatchPlan(targetId, [...moviesById.values()], prerequisites);
+    response.json({ target, ...plan });
   } catch (error) {
     await sendError(error, response);
   }
@@ -221,20 +239,22 @@ app.get('/api/movies/:id/rewatch-order', asyncRoute(async (request, response) =>
 
 app.get('/api/cinemas', asyncRoute(async (_request, response) => {
   try {
-    const cinemas = await pool.query('SELECT id, name FROM cinemas ORDER BY name');
-    const bundleRows = await pool.query(
-      'SELECT cinema_id, size FROM cinema_bundle_sizes ORDER BY size',
-    );
-    const sizesByCinema = new Map();
-    for (const row of bundleRows.rows) {
-      const sizes = sizesByCinema.get(row.cinema_id) ?? [];
-      sizes.push(row.size);
-      sizesByCinema.set(row.cinema_id, sizes);
+    const result = await pool.query(`
+      SELECT c.id, c.name, b.size
+      FROM cinemas c
+      LEFT JOIN cinema_bundle_sizes b ON b.cinema_id = c.id
+      ORDER BY c.name, b.size
+    `);
+    const cinemasById = new Map();
+    for (const row of result.rows) {
+      let cinema = cinemasById.get(row.id);
+      if (!cinema) {
+        cinema = { id: row.id, name: row.name, bundleSizes: [] };
+        cinemasById.set(row.id, cinema);
+      }
+      if (row.size !== null) cinema.bundleSizes.push(row.size);
     }
-    response.json(cinemas.rows.map((cinema) => ({
-      ...cinema,
-      bundleSizes: sizesByCinema.get(cinema.id) ?? [],
-    })));
+    response.json([...cinemasById.values()]);
   } catch (error) {
     await sendError(error, response);
   }
@@ -281,15 +301,18 @@ app.get('/api/cinemas/:id/booking', asyncRoute(async (request, response) => {
   try {
     const id = integer(request.params.id, 'Cinema ID', 1, Number.MAX_SAFE_INTEGER);
     const groupSize = integer(request.query.groupSize, 'Group size', 1, 10_000);
-    const cinemaResult = await pool.query('SELECT id, name FROM cinemas WHERE id = $1', [id]);
-    if (cinemaResult.rowCount === 0) throw apiError(404, 'Cinema not found.');
-    const bundleResult = await pool.query(
-      'SELECT size FROM cinema_bundle_sizes WHERE cinema_id = $1 ORDER BY size', [id],
-    );
+    const result = await pool.query(`
+      SELECT c.id, c.name, b.size
+      FROM cinemas c
+      LEFT JOIN cinema_bundle_sizes b ON b.cinema_id = c.id
+      WHERE c.id = $1
+      ORDER BY b.size
+    `, [id]);
+    if (result.rowCount === 0) throw apiError(404, 'Cinema not found.');
     response.json({
-      cinema: cinemaResult.rows[0],
+      cinema: { id: result.rows[0].id, name: result.rows[0].name },
       groupSize,
-      ...quoteBundles(bundleResult.rows.map((row) => row.size), groupSize),
+      ...quoteBundles(result.rows.flatMap((row) => row.size === null ? [] : [row.size]), groupSize),
     });
   } catch (error) {
     await sendError(error, response);
