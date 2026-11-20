@@ -1,4 +1,6 @@
 import express from 'express';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { pool } from './db.js';
 import { buildRewatchPlan, hasCircularDependency, quoteBundles } from './logic.js';
 
@@ -293,6 +295,9 @@ app.get('/api/cinemas/:id/booking', asyncRoute(async (request, response) => {
     await sendError(error, response);
   }
 }));
+
+const clientBuild = resolve(dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+app.use(express.static(clientBuild));
 
 const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => console.log(`API listening on port ${port}`));

@@ -74,3 +74,7 @@ AI assistance was used to inspect the assessment, plan the implementation, draft
 ## Docker Compose bonus
 
 With `.env` configured, run `docker compose up --build`. The web UI is at `http://localhost:5173`; the API is at `http://localhost:3001`. Compose starts only the application containers. PostgreSQL stays on Neon.
+
+## Deploy to Vercel with Docker
+
+The repository-root `Dockerfile.vercel` builds the Vite pages and serves them with the Express API in one Vercel container. Import the repository root (`.`) as one Vercel project and add `DATABASE_URL` to that project's Production environment variables. Keep Neon as the external database. The existing `docker-compose.yml` remains for local development; Vercel deploys the single HTTP container rather than Compose.
