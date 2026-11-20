@@ -77,4 +77,6 @@ With `.env` configured, run `docker compose up --build`. The web UI is at `http:
 
 ## Deploy to Vercel with Docker
 
+Live site: <https://doomsday-ready-one.vercel.app>.
+
 The repository-root `Dockerfile.vercel` builds the Vite pages and serves them with the Express API in one Vercel container. Import the repository root (`.`) as one Vercel project and add `DATABASE_URL` to that project's Production environment variables. Keep Neon as the external database. The existing `docker-compose.yml` remains for local development; Vercel deploys the single HTTP container rather than Compose.
