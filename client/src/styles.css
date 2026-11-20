@@ -394,7 +394,7 @@ a {
   display: grid;
   grid-template-columns: repeat(6,minmax(0,1fr));
   column-gap: 26px;
-  row-gap: 1em;
+  row-gap: 37px;
 }
 
 .poster-card {
@@ -835,8 +835,7 @@ a {
 
   .poster-grid {
     grid-template-columns: repeat(4,minmax(0,1fr));
-    column-gap: 20px;
-    row-gap: 1em;
+    gap: 29px 20px;
   }
 }
 
@@ -892,8 +891,7 @@ a {
 
   .poster-grid {
     grid-template-columns: repeat(3,minmax(0,1fr));
-    column-gap: 15px;
-    row-gap: 1em;
+    gap: 26px 15px;
   }
 
   .poster-card h3 {
@@ -921,8 +919,7 @@ a {
 @media (max-width:600px) {
   .poster-grid {
     grid-template-columns: repeat(2,minmax(0,1fr));
-    column-gap: 15px;
-    row-gap: 1em;
+    gap: 24px 15px;
   }
 }
 
@@ -984,7 +981,7 @@ a {
   .poster-grid {
     grid-template-columns: repeat(2,minmax(0,1fr));
     column-gap: 13px;
-    row-gap: 1em;
+    row-gap: 25px;
   }
 
   .poster-card h3 {
