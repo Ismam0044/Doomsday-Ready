@@ -1,0 +1,218 @@
+{
+  "deleted": {
+    "testMovies": 80,
+    "testCinemas": 10,
+    "moviePrerequisiteRows": 55,
+    "cinemaBundleRows": 28
+  },
+  "compare": {
+    "baselineMovies": 9,
+    "afterMovies": 9,
+    "baselineCinemas": 1,
+    "afterCinemas": 1,
+    "moviesExact": true,
+    "cinemasExact": true,
+    "testMoviesRemaining": 0,
+    "testCinemasRemaining": 0
+  },
+  "baseline": {
+    "movies": [
+      {
+        "id": 29,
+        "title": "ironman",
+        "releaseYear": 2000,
+        "runtime": 121,
+        "watched": false,
+        "prerequisites": [
+          7,
+          8
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Iron Man",
+        "releaseYear": 2008,
+        "runtime": 126,
+        "watched": true,
+        "prerequisites": []
+      },
+      {
+        "id": 8,
+        "title": "Captain America: The First Avenger",
+        "releaseYear": 2011,
+        "runtime": 124,
+        "watched": true,
+        "prerequisites": []
+      },
+      {
+        "id": 9,
+        "title": "The Avengers",
+        "releaseYear": 2012,
+        "runtime": 143,
+        "watched": true,
+        "prerequisites": [
+          7,
+          8
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Captain America: Civil War",
+        "releaseYear": 2016,
+        "runtime": 147,
+        "watched": true,
+        "prerequisites": [
+          9
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Thor: Ragnarok",
+        "releaseYear": 2017,
+        "runtime": 130,
+        "watched": false,
+        "prerequisites": []
+      },
+      {
+        "id": 12,
+        "title": "Avengers: Infinity War",
+        "releaseYear": 2018,
+        "runtime": 149,
+        "watched": false,
+        "prerequisites": [
+          10,
+          11
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Avengers: Endgame",
+        "releaseYear": 2019,
+        "runtime": 181,
+        "watched": false,
+        "prerequisites": [
+          12
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Avengers: Doomsday",
+        "releaseYear": 2026,
+        "runtime": 180,
+        "watched": false,
+        "prerequisites": [
+          13
+        ]
+      }
+    ],
+    "cinemas": [
+      {
+        "id": 15,
+        "name": "dooms day",
+        "bundleSizes": [
+          2
+        ]
+      }
+    ]
+  },
+  "after": {
+    "movies": [
+      {
+        "id": 29,
+        "title": "ironman",
+        "releaseYear": 2000,
+        "runtime": 121,
+        "watched": false,
+        "prerequisites": [
+          7,
+          8
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Iron Man",
+        "releaseYear": 2008,
+        "runtime": 126,
+        "watched": true,
+        "prerequisites": []
+      },
+      {
+        "id": 8,
+        "title": "Captain America: The First Avenger",
+        "releaseYear": 2011,
+        "runtime": 124,
+        "watched": true,
+        "prerequisites": []
+      },
+      {
+        "id": 9,
+        "title": "The Avengers",
+        "releaseYear": 2012,
+        "runtime": 143,
+        "watched": true,
+        "prerequisites": [
+          7,
+          8
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Captain America: Civil War",
+        "releaseYear": 2016,
+        "runtime": 147,
+        "watched": true,
+        "prerequisites": [
+          9
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Thor: Ragnarok",
+        "releaseYear": 2017,
+        "runtime": 130,
+        "watched": false,
+        "prerequisites": []
+      },
+      {
+        "id": 12,
+        "title": "Avengers: Infinity War",
+        "releaseYear": 2018,
+        "runtime": 149,
+        "watched": false,
+        "prerequisites": [
+          10,
+          11
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Avengers: Endgame",
+        "releaseYear": 2019,
+        "runtime": 181,
+        "watched": false,
+        "prerequisites": [
+          12
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Avengers: Doomsday",
+        "releaseYear": 2026,
+        "runtime": 180,
+        "watched": false,
+        "prerequisites": [
+          13
+        ]
+      }
+    ],
+    "cinemas": [
+      {
+        "id": 15,
+        "name": "dooms day",
+        "bundleSizes": [
+          2
+        ]
+      }
+    ]
+  }
+}

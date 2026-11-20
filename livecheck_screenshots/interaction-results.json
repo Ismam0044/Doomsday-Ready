@@ -1,0 +1,44 @@
+[
+  {
+    "test": "Rewatch first unwatched tick",
+    "input": "TEST chain 4/7 ? click Thor: Ragnarok",
+    "expected": "5 of 7 and 4h remaining",
+    "actual": "WATCHED\n5 of 7\nTIME LEFT\n4h 0m",
+    "pass": true
+  },
+  {
+    "test": "Rewatch first unwatched untick",
+    "input": "TEST chain 5/7 ? untick Thor: Ragnarok",
+    "expected": "4 of 7 and 6h remaining",
+    "actual": "WATCHED\n4 of 7\nTIME LEFT\n6h 0m",
+    "pass": true
+  },
+  {
+    "test": "Movie watch feedback after settle",
+    "input": "TEST movie 41 false?true",
+    "expected": "watched true, button checked, label says unwatched",
+    "actual": "{\"watched\":true,\"aria\":\"Mark TEST Livecheck manual 1795207357266 unwatched\",\"className\":\"poster-check checked\"}",
+    "pass": true
+  },
+  {
+    "test": "Movie watch feedback after untick",
+    "input": "TEST movie 41 true?false",
+    "expected": "watched false, button clear, label says watched",
+    "actual": "{\"watched\":false,\"aria\":\"Mark TEST Livecheck manual 1795207357266 watched\",\"className\":\"poster-check \"}",
+    "pass": true
+  },
+  {
+    "test": "Cinema picker after reload",
+    "input": "TEST Final 1795207932555 UI cinema",
+    "expected": "available after reload",
+    "actual": "[\"TEST Final 1795207932555 UI cinema · 2, 5\"]",
+    "pass": true
+  },
+  {
+    "test": "Movie list after reload",
+    "input": "TEST Livecheck manual 1795207357266",
+    "expected": "visible after reload",
+    "actual": "true",
+    "pass": true
+  }
+]

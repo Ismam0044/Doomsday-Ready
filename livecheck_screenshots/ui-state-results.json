@@ -1,0 +1,37 @@
+[
+  {
+    "test": "Watched toggle initial",
+    "input": "TEST Livecheck manual 1795207357266",
+    "expected": "starts false",
+    "actual": "{\"watched\":false,\"aria\":\"Mark TEST Livecheck manual 1795207357266 watched\"}",
+    "pass": true
+  },
+  {
+    "test": "Watched toggle on",
+    "input": "TEST Livecheck manual 1795207357266",
+    "expected": "false?true",
+    "actual": "{\"watched\":true,\"aria\":\"Mark TEST Livecheck manual 1795207357266 watched\"}",
+    "pass": true
+  },
+  {
+    "test": "Watched toggle off",
+    "input": "TEST Livecheck manual 1795207357266",
+    "expected": "true?false",
+    "actual": "{\"watched\":false,\"aria\":\"Mark TEST Livecheck manual 1795207357266 unwatched\"}",
+    "pass": true
+  },
+  {
+    "test": "Prerequisite add UI",
+    "input": "TEST Livecheck 1795206174385 max",
+    "expected": "contains TEST Livecheck 1795206174385 mid",
+    "actual": "[31]",
+    "pass": true
+  },
+  {
+    "test": "Prerequisite removal UI",
+    "input": "TEST Livecheck 1795206174385 max",
+    "expected": "empty prerequisites",
+    "actual": "[]",
+    "pass": true
+  }
+]
