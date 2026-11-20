@@ -164,7 +164,7 @@ export default function App({ initialView = 'Movies' }) {
           </form></details>
 
           {movies.length ? <div className="poster-grid">{movies.map((movie) => <article className="poster-card" key={movie.id} data-enter>
-            <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onLoad={(event) => { const { naturalWidth, naturalHeight } = event.currentTarget; event.currentTarget.parentElement.style.aspectRatio = `${naturalWidth} / ${naturalHeight}`; }} onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
+            <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
             <h3>{movie.title}</h3><p className="poster-meta">{movie.releaseYear} <i /> {duration(movie.runtime)}</p>
             <details className="prerequisite-details" open={editingId === movie.id} onToggle={(event) => { if (event.currentTarget.open && editingId !== movie.id) { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); } else if (!event.currentTarget.open && editingId === movie.id) setEditingId(null); }}><summary>Edit prerequisites</summary><form onSubmit={(event) => savePrerequisites(event, movie.id)}><div className="prerequisite-options">{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</div><button className="red-button">Save</button></form></details>
             <button className="red-button" type="button" onClick={() => deleteMovie(movie)}>Delete</button>
@@ -189,6 +189,6 @@ export default function App({ initialView = 'Movies' }) {
         </section>}
       </div>}
     </main>
-    <footer className="site-footer"><span>DOOMSDAY READY</span><span>Movies · Rewatch plan · Booking</span></footer>
+    <footer className="site-footer"><span>DOOMSDAY READY</span><nav className="footer-nav" aria-label="Footer navigation">{pageLinks.map((link) => <a key={link.href} href={link.href} aria-current={link.title === view ? 'page' : undefined}>{link.title}</a>)}</nav></footer>
   </div>;
 }
