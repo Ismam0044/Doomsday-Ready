@@ -8,6 +8,7 @@
     "server"
   ],
   "scripts": {
+    "dev": "node scripts/dev.js",
     "dev:server": "npm --workspace server run dev",
     "dev:client": "npm --workspace client run dev",
     "setup": "node --env-file=.env scripts/setup.js",
