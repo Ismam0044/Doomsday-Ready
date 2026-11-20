@@ -75,7 +75,13 @@ async function sendError(error, response) {
   });
 }
 
-app.get('/api/movies', async (_request, response) => {
+function asyncRoute(handler) {
+  return (request, response) => {
+    handler(request, response).catch((error) => sendError(error, response));
+  };
+}
+
+app.get('/api/movies', asyncRoute(async (_request, response) => {
   try {
     const movies = await pool.query(`
       SELECT id, title, release_year AS "releaseYear", runtime, watched
@@ -95,9 +101,9 @@ app.get('/api/movies', async (_request, response) => {
   } catch (error) {
     await sendError(error, response);
   }
-});
+}));
 
-app.post('/api/movies', async (request, response) => {
+app.post('/api/movies', asyncRoute(async (request, response) => {
   const client = await pool.connect();
   try {
     const title = requiredText(request.body.title, 'Title');
@@ -131,9 +137,9 @@ app.post('/api/movies', async (request, response) => {
   } finally {
     client.release();
   }
-});
+}));
 
-app.patch('/api/movies/:id', async (request, response) => {
+app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
   const client = await pool.connect();
   try {
     const id = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
@@ -187,9 +193,9 @@ app.patch('/api/movies/:id', async (request, response) => {
   } finally {
     client.release();
   }
-});
+}));
 
-app.get('/api/movies/:id/rewatch-order', async (request, response) => {
+app.get('/api/movies/:id/rewatch-order', asyncRoute(async (request, response) => {
   try {
     const targetId = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
     const targetResult = await pool.query(`
@@ -209,9 +215,9 @@ app.get('/api/movies/:id/rewatch-order', async (request, response) => {
   } catch (error) {
     await sendError(error, response);
   }
-});
+}));
 
-app.get('/api/cinemas', async (_request, response) => {
+app.get('/api/cinemas', asyncRoute(async (_request, response) => {
   try {
     const cinemas = await pool.query('SELECT id, name FROM cinemas ORDER BY name');
     const bundleRows = await pool.query(
@@ -230,9 +236,9 @@ app.get('/api/cinemas', async (_request, response) => {
   } catch (error) {
     await sendError(error, response);
   }
-});
+}));
 
-app.post('/api/cinemas', async (request, response) => {
+app.post('/api/cinemas', asyncRoute(async (request, response) => {
   const client = await pool.connect();
   try {
     const name = requiredText(request.body.name, 'Cinema name');
@@ -267,9 +273,9 @@ app.post('/api/cinemas', async (request, response) => {
   } finally {
     client.release();
   }
-});
+}));
 
-app.get('/api/cinemas/:id/booking', async (request, response) => {
+app.get('/api/cinemas/:id/booking', asyncRoute(async (request, response) => {
   try {
     const id = integer(request.params.id, 'Cinema ID', 1, Number.MAX_SAFE_INTEGER);
     const groupSize = integer(request.query.groupSize, 'Group size', 1, 10_000);
@@ -286,7 +292,7 @@ app.get('/api/cinemas/:id/booking', async (request, response) => {
   } catch (error) {
     await sendError(error, response);
   }
-});
+}));
 
 const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => console.log(`API listening on port ${port}`));
