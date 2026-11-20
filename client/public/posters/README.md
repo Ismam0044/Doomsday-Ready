@@ -1,15 +1,15 @@
 # Movie posters
 
-Add your own poster files here as WebP images. The app looks for these names:
+Poster files are served from this folder and matched to movies by these names:
 
-- `iron-man.webp`
-- `captain-america-the-first-avenger.webp`
-- `the-avengers.webp`
-- `captain-america-civil-war.webp`
-- `thor-ragnarok.webp`
-- `avengers-infinity-war.webp`
-- `avengers-endgame.webp`
-- `avengers-doomsday.webp`
+- `iron-man.jpg`
+- `captain-america-the-first-avenger.jpg`
+- `the-avengers.jpg`
+- `captain-america-civil-war.jpg`
+- `thor-ragnarok.jpg`
+- `avengers-infinity-war.jpg`
+- `avengers-endgame.jpg`
+- `avengers-doomsday.jpg`
 
-The poster cards use portrait artwork. Until a file is added, the card shows a
+The poster cards use portrait artwork. If a poster is missing, the card shows a
 designed title treatment instead of borrowing another movie's artwork.

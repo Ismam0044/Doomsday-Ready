@@ -2,14 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
 const posters = {
-  'Iron Man': 'iron-man.webp',
-  'Captain America: The First Avenger': 'captain-america-the-first-avenger.webp',
-  'The Avengers': 'the-avengers.webp',
-  'Captain America: Civil War': 'captain-america-civil-war.webp',
-  'Thor: Ragnarok': 'thor-ragnarok.webp',
-  'Avengers: Infinity War': 'avengers-infinity-war.webp',
-  'Avengers: Endgame': 'avengers-endgame.webp',
-  'Avengers: Doomsday': 'avengers-doomsday.webp',
+  'Iron Man': 'iron-man.jpg',
+  'Captain America: The First Avenger': 'captain-america-the-first-avenger.jpg',
+  'The Avengers': 'the-avengers.jpg',
+  'Captain America: Civil War': 'captain-america-civil-war.jpg',
+  'Thor: Ragnarok': 'thor-ragnarok.jpg',
+  'Avengers: Infinity War': 'avengers-infinity-war.jpg',
+  'Avengers: Endgame': 'avengers-endgame.jpg',
+  'Avengers: Doomsday': 'avengers-doomsday.jpg',
 };
 
 const posterUrl = (movie) => {
