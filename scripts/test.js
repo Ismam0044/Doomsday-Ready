@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import { buildRewatchPlan, hasCircularDependency, quoteBundles } from '../server/src/logic.js';
+import { after, before, test } from 'node:test';
+import { buildRewatchPlan, circularDependencyError, hasCircularDependency, quoteBundles } from '../server/src/logic.js';
 import { sampleMovies } from '../server/src/sample-data.js';
+
+let server;
+let apiUrl;
+
+before(async () => {
+  const savedDatabaseUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = 'postgresql://test:test@127.0.0.1/test';
+  const { default: app } = await import('../server/src/index.js');
+  if (savedDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+  else process.env.DATABASE_URL = savedDatabaseUrl;
+
+  server = app.listen(0, '127.0.0.1');
+  await new Promise((resolve) => server.once('listening', resolve));
+  apiUrl = `http://127.0.0.1:${server.address().port}`;
+});
+
+after(async () => {
+  if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+});
 
 const movies = sampleMovies.map((movie, index) => ({
   id: index + 1,
@@ -70,6 +89,38 @@ test('making Endgame a prerequisite of Iron Man is circular', () => {
     ),
     true,
   );
+});
+
+test('a movie cannot depend on itself', () => {
+  assert.equal(hasCircularDependency(1, [1], new Map()), true);
+});
+
+test('a direct two-movie loop is circular', () => {
+  assert.equal(hasCircularDependency(1, [2], new Map([[2, [1]]])), true);
+});
+
+test('circular dependency errors use HTTP 409 and the assessment code', () => {
+  const error = circularDependencyError();
+  assert.equal(error.status, 409);
+  assert.equal(error.code, 'CIRCULAR_DEPENDENCY');
+});
+
+test('malformed API JSON returns a JSON 400 response', async () => {
+  const response = await fetch(`${apiUrl}/api/movies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{',
+  });
+  assert.equal(response.status, 400);
+  assert.match(response.headers.get('content-type'), /application\/json/);
+  assert.equal(typeof (await response.json()).error, 'string');
+});
+
+test('an unknown API route returns a JSON 404 response', async () => {
+  const response = await fetch(`${apiUrl}/api/not-an-endpoint`);
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get('content-type'), /application\/json/);
+  assert.deepEqual(await response.json(), { error: 'API endpoint not found.' });
 });
 
 test('bundle sizes 1, 3, 4 quote two bundles of 3 for six people', () => {

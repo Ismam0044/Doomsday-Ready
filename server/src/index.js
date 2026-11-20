@@ -2,7 +2,7 @@ import express from 'express';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pool } from './db.js';
-import { buildRewatchPlan, hasCircularDependency, quoteBundles } from './logic.js';
+import { buildRewatchPlan, circularDependencyError, hasCircularDependency, quoteBundles } from './logic.js';
 
 const app = express();
 app.use(express.json());
@@ -132,7 +132,7 @@ app.post('/api/movies', asyncRoute(async (request, response) => {
     const id = inserted.rows[0].id;
     const graph = await readPrerequisiteMap(client);
     if (hasCircularDependency(id, prerequisites, graph)) {
-      throw apiError(409, 'This change would create a circular dependency.', 'CIRCULAR_DEPENDENCY');
+      throw circularDependencyError();
     }
     for (const prerequisiteId of prerequisites) {
       await client.query(
@@ -178,7 +178,7 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
       await ensurePrerequisitesExist(client, prerequisites);
       const graph = await readPrerequisiteMap(client);
       if (hasCircularDependency(id, prerequisites, graph)) {
-        throw apiError(409, 'This change would create a circular dependency.', 'CIRCULAR_DEPENDENCY');
+        throw circularDependencyError();
       }
       await client.query('DELETE FROM movie_prerequisites WHERE movie_id = $1', [id]);
       for (const prerequisiteId of prerequisites) {
@@ -320,7 +320,23 @@ app.get('/api/cinemas/:id/booking', asyncRoute(async (request, response) => {
 }));
 
 const clientBuild = resolve(dirname(fileURLToPath(import.meta.url)), '../../client/dist');
+app.use('/api', (_request, response) => {
+  response.status(404).json({ error: 'API endpoint not found.' });
+});
 app.use(express.static(clientBuild));
 
 const port = Number(process.env.PORT ?? 3001);
-app.listen(port, () => console.log(`API listening on port ${port}`));
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  app.listen(port, () => console.log(`API listening on port ${port}`));
+}
+
+app.use((error, _request, response, next) => {
+  if (response.headersSent) return next(error);
+  const status = Number.isInteger(error.status) ? error.status : 500;
+  response.status(status).json({
+    error: status < 500 ? error.message : 'Unexpected server error.',
+  });
+});
+
+export { app };
+export default app;

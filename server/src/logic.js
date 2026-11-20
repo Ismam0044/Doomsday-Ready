@@ -14,6 +14,13 @@ export function hasCircularDependency(movieId, proposedPrerequisites, prerequisi
   return false;
 }
 
+export function circularDependencyError() {
+  const error = new Error('This change would create a circular dependency.');
+  error.status = 409;
+  error.code = 'CIRCULAR_DEPENDENCY';
+  return error;
+}
+
 export function buildRewatchPlan(targetId, movies, prerequisiteRows) {
   const movieById = new Map(movies.map((movie) => [movie.id, movie]));
   const prerequisiteMap = new Map();
