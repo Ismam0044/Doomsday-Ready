@@ -926,7 +926,8 @@ a {
   }
 
   .booking-layout {
-    gap: 13px;
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .site-footer {
@@ -934,12 +935,21 @@ a {
   }
 }
 
+@media (max-width:600px) {
+  .poster-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 24px 15px;
+  }
+}
+
 @media (max-width:480px) {
   .site-header {
     height: auto;
-    min-height: 78px;
-    padding: 8px 13px;
-    gap: 12px;
+    min-height: 0;
+    padding: 12px 18px 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 
   .brand-icon {
@@ -957,12 +967,16 @@ a {
   }
 
   .site-nav {
-    gap: 10px;
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 0 8px;
   }
 
   .site-nav a {
-    font-size: 11px;
-    padding: 11px 0;
+    font-size: 12px;
+    padding: 8px 0;
+    white-space: nowrap;
   }
 
   .site-main {
@@ -987,15 +1001,20 @@ a {
   }
 
   .section-heading {
-    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 10px;
+    padding: 0 4px 10px;
   }
 
   .section-heading h2 {
-    font-size: 23px;
+    font-size: 24px;
   }
 
   .section-heading>span {
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .poster-grid {
@@ -1009,7 +1028,12 @@ a {
   }
 
   .poster-meta {
-    font-size: 11px;
+    font-size: 12px;
+  }
+
+  .prerequisite-details summary {
+    padding: 6px 7px;
+    font-size: 12px;
   }
 
   .movie-form {
@@ -1026,11 +1050,14 @@ a {
   }
 
   .plan-numbers {
-    gap: 28px;
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 12px;
   }
 
   .plan-numbers strong {
     font-size: 18px;
+    white-space: nowrap;
   }
 
   .rewatch-list li {
@@ -1038,17 +1065,45 @@ a {
   }
 
   .rewatch-list li>span {
-    font-size: 8px;
+    flex: none;
+    padding-top: 3px;
+    font-size: 9px;
+    letter-spacing: .03em;
+  }
+
+  .rewatch-list h2 {
+    font-size: 15px;
+  }
+
+  .rewatch-list li>div {
+    min-width: 0;
+  }
+
+  .plan-target strong {
+    display: block;
+    margin: 6px 0 0;
+    overflow-wrap: anywhere;
   }
 
   .booking-layout {
     grid-template-columns: 1fr;
   }
 
+  .booking-card {
+    padding: 18px;
+    gap: 14px;
+  }
+
   .site-footer {
-    font-size: 8px;
-    padding-left: 13px;
-    padding-right: 13px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 10px;
+    padding: 18px;
+  }
+
+  .footer-nav {
+    gap: 8px 16px;
   }
 }
 
