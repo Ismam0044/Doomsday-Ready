@@ -399,6 +399,8 @@ a {
 
 .poster-card {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .poster-image {
@@ -474,13 +476,20 @@ a {
   line-height: 1.15;
   font-weight: 750;
   margin: 12px 0 5px;
+  min-height: 2.3em;
   overflow-wrap: anywhere;
 }
 
 .poster-meta {
   margin: 0;
+  min-height: 1.45em;
   color: #c2c2c2;
   font-size: 14px;
+}
+
+.poster-card > .red-button {
+  margin-top: auto;
+  align-self: flex-start;
 }
 
 .poster-meta i {
@@ -1038,10 +1047,16 @@ a {
 }
 
 .hero-image {
+  inset: auto 0 auto auto;
+  top: 50%;
+  width: min(58%, 924px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  transform: translateY(-50%);
   background-color: #080808;
-  background-position: right center;
+  background-position: center;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: 100% 100%;
 }
 
 .poster-image {
@@ -1138,7 +1153,14 @@ a {
   }
 
   .hero-image {
-    background-position: 58% center;
+    inset: 0 0 auto;
+    top: 0;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    transform: none;
+    background-position: center;
+    background-size: cover;
   }
 
   .hero-copy {
