@@ -50,7 +50,6 @@ export default function App({ initialView = 'Movies' }) {
   const [busy, setBusy] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draftPrerequisites, setDraftPrerequisites] = useState([]);
-  const [slide, setSlide] = useState(2);
   const viewRef = useRef(null);
 
   async function refresh() {
@@ -85,11 +84,7 @@ export default function App({ initialView = 'Movies' }) {
       }, scope);
     } catch { return undefined; }
     return () => context.revert();
-  }, [view, busy, movies, plan, quote, editingId, slide]);
-
-  const heroMovies = movies.slice(-3);
-  const heroMovie = heroMovies[slide % Math.max(heroMovies.length, 1)];
-  const shiftSlide = (next) => setSlide((current) => (current + next + Math.max(heroMovies.length, 1)) % Math.max(heroMovies.length, 1));
+  }, [view, busy, movies, plan, quote, editingId]);
 
   async function save(path, options) { await api(path, options); await refresh(); }
   async function addMovie(event) {
@@ -146,13 +141,9 @@ export default function App({ initialView = 'Movies' }) {
       {busy ? <p className="loading-note">Loading your movies…</p> : <div ref={viewRef} key={view}>
         {view === 'Movies' && <section aria-labelledby="movies-title">
           <div className="hero-wrap" data-enter>
-            {heroMovies.length > 1 && <><div className="hero-side left" style={posterUrl(heroMovies[(slide + heroMovies.length - 1) % heroMovies.length]) ? { backgroundImage: `url(${posterUrl(heroMovies[(slide + heroMovies.length - 1) % heroMovies.length])})` } : undefined} /><div className="hero-side right" style={posterUrl(heroMovies[(slide + 1) % heroMovies.length]) ? { backgroundImage: `url(${posterUrl(heroMovies[(slide + 1) % heroMovies.length])})` } : undefined} /></>}
-            <div className="hero-carousel">
-              <div className={`hero-image ${heroMovie && !posterUrl(heroMovie) ? 'poster-missing' : ''}`} style={posterUrl(heroMovie) ? { backgroundImage: `url(${posterUrl(heroMovie)})` } : undefined} />
-              <div className="hero-shade" />
-              <div className="hero-copy"><span className="eyebrow">DOOMSDAY READY</span><p>Make a night of it.</p><h1 id="movies-title">{heroMovie?.title || 'Your next movie night starts here'}</h1><a className="light-button" href="/rewatch.html">Build your rewatch plan</a></div>
-              {heroMovies.length > 1 && <div className="hero-controls"><button aria-label="Previous featured movie" onClick={() => shiftSlide(-1)}>‹</button>{heroMovies.map((movie, index) => <button key={movie.id} className={`hero-dot ${slide === index ? 'selected' : ''}`} aria-label={`Show ${movie.title}`} onClick={() => setSlide(index)} />)}<button aria-label="Next featured movie" onClick={() => shiftSlide(1)}>›</button></div>}
-            </div>
+            <div className="hero-image" role="img" aria-label="Avengers: Doomsday poster" style={{ backgroundImage: `url(${posterUrl({ title: 'Avengers: Doomsday' })})` }} />
+            <div className="hero-shade" />
+            <div className="hero-copy"><span className="eyebrow">DOOMSDAY READY</span><h1 id="movies-title"><span>Avengers:</span><em>Doomsday.</em></h1><p>Get the stories in order before opening night.</p><a className="hero-button" href="/rewatch.html">Build your rewatch plan</a></div>
           </div>
 
           <div className="section-heading" data-enter><h2>Your movies</h2><span>{movies.length} in your collection</span></div>
