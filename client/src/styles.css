@@ -488,7 +488,7 @@ a {
 }
 
 .poster-card > .red-button {
-  margin-top: auto;
+  margin-top: 1em;
   align-self: flex-start;
 }
 
@@ -507,10 +507,33 @@ a {
 }
 
 .prerequisite-details summary {
-  font-size: 12px;
-  color: #ccc;
-  cursor: pointer;
   width: max-content;
+  padding: 6px 9px;
+  border: 1px solid #393939;
+  border-radius: 3px;
+  background: #111;
+  color: #f2f2f2;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+
+.prerequisite-details summary::marker {
+  color: var(--red);
+}
+
+.prerequisite-details summary:hover,
+.prerequisite-details summary:focus-visible,
+.prerequisite-details[open] summary {
+  border-color: var(--red);
+  color: #fff;
+  background: #211013;
+}
+
+.prerequisite-details summary:focus-visible {
+  outline: 2px solid #ff5262;
+  outline-offset: 2px;
 }
 
 .prerequisite-details form {
@@ -1041,22 +1064,21 @@ a {
 /*Doomsday feature banner*/
 
 .hero-wrap {
-  height: clamp(380px,34vw,520px);
+  height: auto;
+  aspect-ratio: 16 / 9;
   margin: 10px auto 88px;
   background: var(--black);
 }
 
 .hero-image {
-  inset: auto 0 auto auto;
-  top: 50%;
-  width: min(58%, 924px);
-  height: auto;
-  aspect-ratio: 16 / 9;
-  transform: translateY(-50%);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
   background-color: #080808;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 100% 100%;
+  background-size: cover;
 }
 
 .poster-image {
@@ -1148,36 +1170,47 @@ a {
 
 @media (max-width:760px) {
   .hero-wrap {
-    height: 420px;
+    height: auto;
+    aspect-ratio: auto;
+    display: flex;
+    flex-direction: column;
+    padding-top: 56.25%;
     margin: 5px auto 52px;
   }
 
   .hero-image {
-    inset: 0 0 auto;
+    inset: 0 0 auto 0;
     top: 0;
     width: 100%;
     height: auto;
     aspect-ratio: 16 / 9;
     transform: none;
     background-position: center;
-    background-size: cover;
+    background-size: 100% 100%;
+  }
+
+  .hero-shade {
+    height: 56.25vw;
+    bottom: auto;
+    background: linear-gradient(0deg,#08080855,transparent 45%);
   }
 
   .hero-copy {
-    padding: 30px 26px 100px;
-    justify-content: flex-end;
+    position: relative;
+    inset: auto;
+    padding: 25px 26px 28px;
+    background: #080808;
+    justify-content: flex-start;
   }
 
   .hero-copy h1 {
-    font-size: clamp(58px,12vw,86px);
+    font-size: clamp(42px,12vw,70px);
   }
 
   .hero-button {
-    top: auto;
-    right: auto;
-    left: 26px;
-    bottom: 28px;
+    position: static;
     min-width: 0;
+    margin-top: 22px;
     padding: 13px 17px;
     transform: none;
   }
@@ -1185,12 +1218,11 @@ a {
 
 @media (max-width:480px) {
   .hero-wrap {
-    height: 390px;
     margin-bottom: 39px;
   }
 
   .hero-copy {
-    padding: 24px 18px 90px;
+    padding: 21px 18px 25px;
   }
 
   .hero-copy h1 {
@@ -1202,7 +1234,6 @@ a {
   }
 
   .hero-button {
-    left: 18px;
-    bottom: 22px;
+    margin-top: 18px;
   }
 }
