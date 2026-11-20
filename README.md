@@ -18,7 +18,7 @@ The API listens on port 3001. The Vite development server forwards `/api` reques
 
 ## Movie posters
 
-Place your poster artwork in `client/public/posters` using the filenames listed in that folder's README. The app serves those local images directly; missing posters use a title treatment until you add the files.
+Place your poster artwork in `client/public/posters` using these filenames: `iron-man.jpg`, `captain-america-the-first-avenger.jpg`, `the-avengers.jpg`, `captain-america-civil-war.jpg`, `thor-ragnarok.jpg`, `avengers-infinity-war.jpg`, `avengers-endgame.jpg`, and `avengers-doomsday.jpg`. The app serves those local images directly; missing posters use a title treatment until you add the files.
 
 ## Assessment API
 

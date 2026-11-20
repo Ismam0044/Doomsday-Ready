@@ -7,3 +7,7 @@ dist
 !.env.example
 *.log
 .DS_Store
+.agents/
+.codex/
+/neon.ts
+/skills-lock.json
