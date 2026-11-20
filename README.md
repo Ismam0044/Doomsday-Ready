@@ -25,6 +25,7 @@ Place your poster artwork in `client/public/posters` using the filenames listed 
 - `POST /api/movies` adds a movie.
 - `GET /api/movies` lists movies.
 - `PATCH /api/movies/:id` updates watched state, movie details, or prerequisites.
+- `DELETE /api/movies/:id` deletes a movie if no other movie lists it as a prerequisite. It returns `409 MOVIE_IS_PREREQUISITE` otherwise.
 - `GET /api/movies/:id/rewatch-order` returns its prerequisite-first plan.
 - `POST /api/cinemas` adds a cinema and its bundle sizes.
 - `GET /api/cinemas` lists cinemas and bundle sizes.
@@ -66,6 +67,7 @@ erDiagram
 - Prerequisites can be changed when creating or editing a movie through the API. On the Movies view, prerequisites are selected when adding a movie.
 - If several valid prerequisite orders exist, the implementation returns a valid depth-first order. Bundle ties use the first minimum solution found by the dynamic program.
 - Unique text values follow PostgreSQL's default case-sensitive comparison.
+- Movie prerequisite foreign keys use `ON DELETE NO ACTION`; deleting a movie explicitly removes only its own prerequisite links after confirming no other movie depends on it. The database never cascades prerequisite-link deletion.
 
 ## AI tools
 

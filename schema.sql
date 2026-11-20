@@ -7,8 +7,8 @@ CREATE TABLE IF NOT EXISTS movies (
 );
 
 CREATE TABLE IF NOT EXISTS movie_prerequisites (
-  movie_id INTEGER NOT NULL REFERENCES movies(id),
-  prerequisite_id INTEGER NOT NULL REFERENCES movies(id),
+  movie_id INTEGER NOT NULL REFERENCES movies(id) ON DELETE NO ACTION,
+  prerequisite_id INTEGER NOT NULL REFERENCES movies(id) ON DELETE NO ACTION,
   PRIMARY KEY (movie_id, prerequisite_id),
   CHECK (movie_id <> prerequisite_id)
 );

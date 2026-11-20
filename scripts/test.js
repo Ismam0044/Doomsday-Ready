@@ -1,15 +1,18 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 import { buildRewatchPlan, circularDependencyError, hasCircularDependency, quoteBundles } from '../server/src/logic.js';
 import { sampleMovies } from '../server/src/sample-data.js';
 
 let server;
 let apiUrl;
+let pool;
 
 before(async () => {
   const savedDatabaseUrl = process.env.DATABASE_URL;
   process.env.DATABASE_URL = 'postgresql://test:test@127.0.0.1/test';
   const { default: app } = await import('../server/src/index.js');
+  ({ pool } = await import('../server/src/db.js'));
   if (savedDatabaseUrl === undefined) delete process.env.DATABASE_URL;
   else process.env.DATABASE_URL = savedDatabaseUrl;
 
@@ -17,6 +20,41 @@ before(async () => {
   await new Promise((resolve) => server.once('listening', resolve));
   apiUrl = `http://127.0.0.1:${server.address().port}`;
 });
+
+async function withMovieDatabase({ movieExists = true, isPrerequisite = false } = {}, run) {
+  const originalConnect = pool.connect;
+  const queries = [];
+
+  pool.connect = async () => ({
+    async query(sql, values = []) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      queries.push({ statement, values });
+      if (statement === 'SELECT id FROM movies WHERE id = $1 FOR UPDATE') {
+        return { rows: movieExists ? [{ id: values[0] }] : [], rowCount: movieExists ? 1 : 0 };
+      }
+      if (statement === 'SELECT movie_id FROM movie_prerequisites WHERE prerequisite_id = $1 LIMIT 1') {
+        return { rows: isPrerequisite ? [{ movie_id: 2 }] : [], rowCount: isPrerequisite ? 1 : 0 };
+      }
+      if (statement.startsWith('DELETE FROM movie_prerequisites WHERE movie_id = $1')) {
+        return { rows: [], rowCount: 1 };
+      }
+      if (statement === 'DELETE FROM movies WHERE id = $1') {
+        return { rows: [], rowCount: 1 };
+      }
+      if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(statement)) {
+        return { rows: [], rowCount: null };
+      }
+      throw new Error(`Unexpected test query: ${statement}`);
+    },
+    release() {},
+  });
+
+  try {
+    await run(queries);
+  } finally {
+    pool.connect = originalConnect;
+  }
+}
 
 after(async () => {
   if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -121,6 +159,47 @@ test('an unknown API route returns a JSON 404 response', async () => {
   assert.equal(response.status, 404);
   assert.match(response.headers.get('content-type'), /application\/json/);
   assert.deepEqual(await response.json(), { error: 'API endpoint not found.' });
+});
+
+test('DELETE /api/movies/:id returns 204 and explicitly removes its own prerequisite links', async () => {
+  await withMovieDatabase({}, async (queries) => {
+    const response = await fetch(`${apiUrl}/api/movies/1`, { method: 'DELETE' });
+    assert.equal(response.status, 204);
+    assert.equal(await response.text(), '');
+
+    const statements = queries.map(({ statement }) => statement);
+    assert.ok(statements.indexOf('DELETE FROM movie_prerequisites WHERE movie_id = $1') < statements.indexOf('DELETE FROM movies WHERE id = $1'));
+    assert.ok(statements.includes('COMMIT'));
+    assert.equal(statements.some((statement) => statement.includes('ON DELETE CASCADE')), false);
+  });
+});
+
+test('DELETE /api/movies/:id returns JSON 404 when the movie does not exist', async () => {
+  await withMovieDatabase({ movieExists: false }, async (queries) => {
+    const response = await fetch(`${apiUrl}/api/movies/999`, { method: 'DELETE' });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'Movie not found.' });
+    assert.equal(queries.some(({ statement }) => statement.startsWith('DELETE FROM')), false);
+  });
+});
+
+test('DELETE /api/movies/:id returns MOVIE_IS_PREREQUISITE and leaves links untouched', async () => {
+  await withMovieDatabase({ isPrerequisite: true }, async (queries) => {
+    const response = await fetch(`${apiUrl}/api/movies/1`, { method: 'DELETE' });
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), {
+      error: 'This movie is a prerequisite for other movies and cannot be deleted.',
+      code: 'MOVIE_IS_PREREQUISITE',
+    });
+    assert.equal(queries.some(({ statement }) => statement.startsWith('DELETE FROM')), false);
+  });
+});
+
+test('movie prerequisite foreign keys explicitly prevent cascading deletes', async () => {
+  const schema = await readFile(new URL('../schema.sql', import.meta.url), 'utf8');
+  assert.match(schema, /movie_id INTEGER NOT NULL REFERENCES movies\(id\) ON DELETE NO ACTION/);
+  assert.match(schema, /prerequisite_id INTEGER NOT NULL REFERENCES movies\(id\) ON DELETE NO ACTION/);
+  assert.doesNotMatch(schema, /ON DELETE CASCADE/i);
 });
 
 test('bundle sizes 1, 3, 4 quote two bundles of 3 for six people', () => {

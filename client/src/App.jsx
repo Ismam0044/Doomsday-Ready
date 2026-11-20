@@ -28,6 +28,7 @@ async function api(path, options = {}) {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
   });
+  if (response.status === 204) return null;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('application/json')) {
     throw new Error('The API did not return JSON. Restart the server and refresh this page.');
@@ -118,6 +119,13 @@ export default function App({ initialView = 'Movies' }) {
     try { await save(`/movies/${movie.id}`, { method: 'PATCH', body: JSON.stringify({ watched: !movie.watched }) }); }
     catch (problem) { setError(problem.message); }
   }
+  async function deleteMovie(movie) {
+    if (!window.confirm(`Delete “${movie.title}”? This can’t be undone.`)) return;
+    try {
+      await api(`/movies/${movie.id}`, { method: 'DELETE' });
+      await refresh();
+    } catch (problem) { setError(problem.message); }
+  }
   async function savePrerequisites(event, movieId) {
     event.preventDefault();
     try {
@@ -159,6 +167,7 @@ export default function App({ initialView = 'Movies' }) {
             <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onLoad={(event) => { const { naturalWidth, naturalHeight } = event.currentTarget; event.currentTarget.parentElement.style.aspectRatio = `${naturalWidth} / ${naturalHeight}`; }} onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
             <h3>{movie.title}</h3><p className="poster-meta">{movie.releaseYear} <i /> {duration(movie.runtime)}</p>
             <details className="prerequisite-details" open={editingId === movie.id} onToggle={(event) => { if (event.currentTarget.open && editingId !== movie.id) { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); } else if (!event.currentTarget.open && editingId === movie.id) setEditingId(null); }}><summary>Edit prerequisites</summary><form onSubmit={(event) => savePrerequisites(event, movie.id)}><div className="prerequisite-options">{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</div><button className="red-button">Save</button></form></details>
+            <button className="red-button" type="button" onClick={() => deleteMovie(movie)}>Delete</button>
           </article>)}</div> : !busy && <p className="empty-state">No movies yet. Add one to get started.</p>}
         </section>}
 

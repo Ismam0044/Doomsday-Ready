@@ -206,6 +206,37 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
   }
 }));
 
+app.delete('/api/movies/:id', asyncRoute(async (request, response) => {
+  const id = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query('SELECT id FROM movies WHERE id = $1 FOR UPDATE', [id]);
+    if (found.rowCount === 0) throw apiError(404, 'Movie not found.');
+
+    const dependents = await client.query(
+      'SELECT movie_id FROM movie_prerequisites WHERE prerequisite_id = $1 LIMIT 1', [id],
+    );
+    if (dependents.rowCount > 0) {
+      throw apiError(409, 'This movie is a prerequisite for other movies and cannot be deleted.', 'MOVIE_IS_PREREQUISITE');
+    }
+
+    await client.query('DELETE FROM movie_prerequisites WHERE movie_id = $1', [id]);
+    await client.query('DELETE FROM movies WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    response.status(204).end();
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error.code === '23503' && error.constraint === 'movie_prerequisites_prerequisite_id_fkey') {
+      await sendError(apiError(409, 'This movie is a prerequisite for other movies and cannot be deleted.', 'MOVIE_IS_PREREQUISITE'), response);
+    } else {
+      await sendError(error, response);
+    }
+  } finally {
+    client.release();
+  }
+}));
+
 app.get('/api/movies/:id/rewatch-order', asyncRoute(async (request, response) => {
   try {
     const targetId = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
