@@ -4,15 +4,17 @@ Doomsday Ready helps MCU fans plan a rewatch before *Avengers: Doomsday*. Add mo
 
 This project was built for the Blinto Full Stack Developer Internship assessment. The sample movie links are challenge data, not an official MCU watch guide.
 
+**Live site:** <https://doomsday-ready-one.vercel.app>
+
 ## What the assessment asks for
 
 The app has three views:
 
-- **Movies:** Add movies, change their prerequisites, mark them watched or unwatched, and delete movies that no other movie depends on.
+- **Movies:** Add movies, change their prerequisites, and mark them watched or unwatched.
 - **Rewatch Plan:** Choose a target movie and see every prerequisite once, in watch order. The plan shows watched progress and the remaining runtime.
 - **Booking:** Choose a cinema, enter a group size, and see the fewest seat bundles that fit exactly, or “Not possible.”
 
-The API supports the same movie, rewatch, cinema, and booking tasks. Movie cycles return `409 CIRCULAR_DEPENDENCY`. A movie that another movie needs cannot be deleted; that request returns `409 MOVIE_IS_PREREQUISITE`.
+If a change creates a movie cycle, the API returns `409 CIRCULAR_DEPENDENCY`. This project also has a delete endpoint added separately from the assessment: it will not delete a movie that another movie uses as a prerequisite, and returns `409 MOVIE_IS_PREREQUISITE` instead.
 
 ## Technology
 
@@ -24,7 +26,7 @@ The cycle check, prerequisite traversal, and minimum-bundle calculation are writ
 
 ## Set up locally
 
-You need Node.js 20 or newer, npm, and a Neon PostgreSQL database.
+You need Node.js 20.6 or newer, npm, and a Neon PostgreSQL database.
 
 1. Clone the repository and open its root folder:
 
@@ -49,7 +51,7 @@ You need Node.js 20 or newer, npm, and a Neon PostgreSQL database.
 
 3. Open `.env`. Replace the `DATABASE_URL` example with your Neon connection string. Keep the local API port as `PORT=3001`. Do not commit `.env`; it contains your database credentials.
 
-   The app enables SSL for non-local PostgreSQL connections. A Neon connection string should include its SSL setting.
+   For remote database hosts, the server uses SSL and verifies the server certificate.
 
 4. Install the exact dependencies recorded in the lock file:
 
@@ -168,8 +170,6 @@ docker compose up --build
 Open <http://localhost:5173/>. The API is available at <http://localhost:3001/>. Compose starts only the app containers; PostgreSQL remains on Neon. Press **Ctrl+C** to stop the services.
 
 ## Deploy on Vercel
-
-The live site is <https://doomsday-ready-one.vercel.app>.
 
 Import the repository root as a single Vercel project. The root `vercel.json` selects the container setup, and `Dockerfile.vercel` builds the frontend and runs it with the Express API. Add `DATABASE_URL` to the project’s Production environment variables in Vercel. Keep the real connection string out of Git. The Vercel container listens on port `80`; the local `PORT=3001` setting is for development and Docker Compose.
 
