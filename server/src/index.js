@@ -88,38 +88,35 @@ function asyncRoute(handler) {
 }
 
 app.get('/api/movies', asyncRoute(async (_request, response) => {
-  try {
-    const result = await pool.query(`
-      SELECT m.id, m.title, m.release_year AS "releaseYear", m.runtime, m.watched,
-             p.prerequisite_id AS "prerequisiteId"
-      FROM movies m
-      LEFT JOIN movie_prerequisites p ON p.movie_id = m.id
-      ORDER BY m.release_year, m.title, p.prerequisite_id
-    `);
-    const moviesById = new Map();
-    for (const row of result.rows) {
-      let movie = moviesById.get(row.id);
-      if (!movie) {
-        movie = {
-          id: row.id,
-          title: row.title,
-          releaseYear: row.releaseYear,
-          runtime: row.runtime,
-          watched: row.watched,
-          prerequisites: [],
-        };
-        moviesById.set(row.id, movie);
-      }
-      if (row.prerequisiteId !== null) movie.prerequisites.push(row.prerequisiteId);
+  const result = await pool.query(`
+    SELECT m.id, m.title, m.release_year AS "releaseYear", m.runtime, m.watched,
+           p.prerequisite_id AS "prerequisiteId"
+    FROM movies m
+    LEFT JOIN movie_prerequisites p ON p.movie_id = m.id
+    ORDER BY m.release_year, m.title, p.prerequisite_id
+  `);
+  const moviesById = new Map();
+  for (const row of result.rows) {
+    let movie = moviesById.get(row.id);
+    if (!movie) {
+      movie = {
+        id: row.id,
+        title: row.title,
+        releaseYear: row.releaseYear,
+        runtime: row.runtime,
+        watched: row.watched,
+        prerequisites: [],
+      };
+      moviesById.set(row.id, movie);
     }
-    response.json([...moviesById.values()]);
-  } catch (error) {
-    await sendError(error, response);
+    if (row.prerequisiteId !== null) movie.prerequisites.push(row.prerequisiteId);
   }
+  response.json([...moviesById.values()]);
 }));
 
 app.post('/api/movies', asyncRoute(async (request, response) => {
   const client = await pool.connect();
+  let transactionStarted = false;
   try {
     const title = requiredText(request.body.title, 'Title');
     const releaseYear = integer(request.body.releaseYear, 'Release year', 1888, 2200);
@@ -128,6 +125,7 @@ app.post('/api/movies', asyncRoute(async (request, response) => {
     const prerequisites = prerequisiteIds(request.body.prerequisites);
 
     await client.query('BEGIN');
+    transactionStarted = true;
     await ensurePrerequisitesExist(client, prerequisites);
     const inserted = await client.query(
       'INSERT INTO movies (title, release_year, runtime, watched) VALUES ($1, $2, $3, $4) RETURNING id',
@@ -147,7 +145,7 @@ app.post('/api/movies', asyncRoute(async (request, response) => {
     await client.query('COMMIT');
     response.status(201).json({ id, title, releaseYear, runtime, watched, prerequisites });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (transactionStarted) await client.query('ROLLBACK');
     await sendError(error, response);
   } finally {
     client.release();
@@ -156,6 +154,7 @@ app.post('/api/movies', asyncRoute(async (request, response) => {
 
 app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
   const client = await pool.connect();
+  let transactionStarted = false;
   try {
     const id = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
     const found = await client.query('SELECT * FROM movies WHERE id = $1', [id]);
@@ -173,6 +172,7 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
       : prerequisiteIds(request.body.prerequisites);
 
     await client.query('BEGIN');
+    transactionStarted = true;
     await client.query(
       'UPDATE movies SET title = $1, release_year = $2, runtime = $3, watched = $4 WHERE id = $5',
       [title, releaseYear, runtime, watched, id],
@@ -203,7 +203,7 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
     );
     response.json({ ...updated.rows[0], prerequisites: edgeRows.rows.map((row) => row.prerequisite_id) });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (transactionStarted) await client.query('ROLLBACK');
     await sendError(error, response);
   } finally {
     client.release();
@@ -213,8 +213,10 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
 app.delete('/api/movies/:id', asyncRoute(async (request, response) => {
   const id = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
   const client = await pool.connect();
+  let transactionStarted = false;
   try {
     await client.query('BEGIN');
+    transactionStarted = true;
     const found = await client.query('SELECT id FROM movies WHERE id = $1 FOR UPDATE', [id]);
     if (found.rowCount === 0) throw apiError(404, 'Movie not found.');
 
@@ -230,7 +232,7 @@ app.delete('/api/movies/:id', asyncRoute(async (request, response) => {
     await client.query('COMMIT');
     response.status(204).end();
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (transactionStarted) await client.query('ROLLBACK');
     if (error.code === '23503' && error.constraint === 'movie_prerequisites_prerequisite_id_fkey') {
       await sendError(apiError(409, 'This movie is a prerequisite for other movies and cannot be deleted.', 'MOVIE_IS_PREREQUISITE'), response);
     } else {
@@ -242,61 +244,54 @@ app.delete('/api/movies/:id', asyncRoute(async (request, response) => {
 }));
 
 app.get('/api/movies/:id/rewatch-order', asyncRoute(async (request, response) => {
-  try {
-    const targetId = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
-    const result = await pool.query(`
-      SELECT m.id, m.title, m.release_year AS "releaseYear", m.runtime, m.watched,
-             p.movie_id AS "movieId", p.prerequisite_id AS "prerequisiteId"
-      FROM movies m
-      LEFT JOIN movie_prerequisites p ON p.movie_id = m.id
-      ORDER BY m.id, p.prerequisite_id
-    `);
-    const moviesById = new Map();
-    const prerequisites = [];
-    for (const row of result.rows) {
-      let movie = moviesById.get(row.id);
-      if (!movie) {
-        movie = { id: row.id, title: row.title, releaseYear: row.releaseYear, runtime: row.runtime, watched: row.watched };
-        moviesById.set(row.id, movie);
-      }
-      if (row.prerequisiteId !== null) {
-        prerequisites.push({ movie_id: row.movieId, prerequisite_id: row.prerequisiteId });
-      }
+  const targetId = integer(request.params.id, 'Movie ID', 1, Number.MAX_SAFE_INTEGER);
+  const result = await pool.query(`
+    SELECT m.id, m.title, m.release_year AS "releaseYear", m.runtime, m.watched,
+           p.movie_id AS "movieId", p.prerequisite_id AS "prerequisiteId"
+    FROM movies m
+    LEFT JOIN movie_prerequisites p ON p.movie_id = m.id
+    ORDER BY m.id, p.prerequisite_id
+  `);
+  const moviesById = new Map();
+  const prerequisites = [];
+  for (const row of result.rows) {
+    let movie = moviesById.get(row.id);
+    if (!movie) {
+      movie = { id: row.id, title: row.title, releaseYear: row.releaseYear, runtime: row.runtime, watched: row.watched };
+      moviesById.set(row.id, movie);
     }
-    const target = moviesById.get(targetId);
-    if (!target) throw apiError(404, 'Movie not found.');
-    const plan = buildRewatchPlan(targetId, [...moviesById.values()], prerequisites);
-    response.json({ target, ...plan });
-  } catch (error) {
-    await sendError(error, response);
+    if (row.prerequisiteId !== null) {
+      prerequisites.push({ movie_id: row.movieId, prerequisite_id: row.prerequisiteId });
+    }
   }
+  const target = moviesById.get(targetId);
+  if (!target) throw apiError(404, 'Movie not found.');
+  const plan = buildRewatchPlan(targetId, [...moviesById.values()], prerequisites);
+  response.json({ target, ...plan });
 }));
 
 app.get('/api/cinemas', asyncRoute(async (_request, response) => {
-  try {
-    const result = await pool.query(`
-      SELECT c.id, c.name, b.size
-      FROM cinemas c
-      LEFT JOIN cinema_bundle_sizes b ON b.cinema_id = c.id
-      ORDER BY c.name, b.size
-    `);
-    const cinemasById = new Map();
-    for (const row of result.rows) {
-      let cinema = cinemasById.get(row.id);
-      if (!cinema) {
-        cinema = { id: row.id, name: row.name, bundleSizes: [] };
-        cinemasById.set(row.id, cinema);
-      }
-      if (row.size !== null) cinema.bundleSizes.push(row.size);
+  const result = await pool.query(`
+    SELECT c.id, c.name, b.size
+    FROM cinemas c
+    LEFT JOIN cinema_bundle_sizes b ON b.cinema_id = c.id
+    ORDER BY c.name, b.size
+  `);
+  const cinemasById = new Map();
+  for (const row of result.rows) {
+    let cinema = cinemasById.get(row.id);
+    if (!cinema) {
+      cinema = { id: row.id, name: row.name, bundleSizes: [] };
+      cinemasById.set(row.id, cinema);
     }
-    response.json([...cinemasById.values()]);
-  } catch (error) {
-    await sendError(error, response);
+    if (row.size !== null) cinema.bundleSizes.push(row.size);
   }
+  response.json([...cinemasById.values()]);
 }));
 
 app.post('/api/cinemas', asyncRoute(async (request, response) => {
   const client = await pool.connect();
+  let transactionStarted = false;
   try {
     const name = requiredText(request.body.name, 'Cinema name');
     const sizes = request.body.bundleSizes;
@@ -309,6 +304,7 @@ app.post('/api/cinemas', asyncRoute(async (request, response) => {
     }
 
     await client.query('BEGIN');
+    transactionStarted = true;
     const inserted = await client.query(
       'INSERT INTO cinemas (name) VALUES ($1) RETURNING id', [name],
     );
@@ -322,7 +318,7 @@ app.post('/api/cinemas', asyncRoute(async (request, response) => {
     await client.query('COMMIT');
     response.status(201).json({ id, name, bundleSizes });
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (transactionStarted) await client.query('ROLLBACK');
     await sendError(error, response);
   } finally {
     client.release();
@@ -330,25 +326,21 @@ app.post('/api/cinemas', asyncRoute(async (request, response) => {
 }));
 
 app.get('/api/cinemas/:id/booking', asyncRoute(async (request, response) => {
-  try {
-    const id = integer(request.params.id, 'Cinema ID', 1, Number.MAX_SAFE_INTEGER);
-    const groupSize = integer(request.query.groupSize, 'Group size', 1, 10_000);
-    const result = await pool.query(`
-      SELECT c.id, c.name, b.size
-      FROM cinemas c
-      LEFT JOIN cinema_bundle_sizes b ON b.cinema_id = c.id
-      WHERE c.id = $1
-      ORDER BY b.size
-    `, [id]);
-    if (result.rowCount === 0) throw apiError(404, 'Cinema not found.');
-    response.json({
-      cinema: { id: result.rows[0].id, name: result.rows[0].name },
-      groupSize,
-      ...quoteBundles(result.rows.flatMap((row) => row.size === null ? [] : [row.size]), groupSize),
-    });
-  } catch (error) {
-    await sendError(error, response);
-  }
+  const id = integer(request.params.id, 'Cinema ID', 1, Number.MAX_SAFE_INTEGER);
+  const groupSize = integer(request.query.groupSize, 'Group size', 1, 10_000);
+  const result = await pool.query(`
+    SELECT c.id, c.name, b.size
+    FROM cinemas c
+    LEFT JOIN cinema_bundle_sizes b ON b.cinema_id = c.id
+    WHERE c.id = $1
+    ORDER BY b.size
+  `, [id]);
+  if (result.rowCount === 0) throw apiError(404, 'Cinema not found.');
+  response.json({
+    cinema: { id: result.rows[0].id, name: result.rows[0].name },
+    groupSize,
+    ...quoteBundles(result.rows.flatMap((row) => row.size === null ? [] : [row.size]), groupSize),
+  });
 }));
 
 const clientBuild = resolve(dirname(fileURLToPath(import.meta.url)), '../../client/dist');
