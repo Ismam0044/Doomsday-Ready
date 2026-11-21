@@ -15,8 +15,11 @@ function apiError(status, message, code) {
 }
 
 function integer(value, label, min, max) {
+  const validType = typeof value === 'number'
+    ? Number.isSafeInteger(value)
+    : typeof value === 'string' && /^-?\d+$/.test(value);
   const number = Number(value);
-  if (!Number.isInteger(number) || number < min || number > max) {
+  if (!validType || !Number.isSafeInteger(number) || number < min || number > max) {
     throw apiError(400, `${label} must be a whole number from ${min} to ${max}.`);
   }
   return number;
@@ -32,11 +35,12 @@ function requiredText(value, label) {
 function prerequisiteIds(value) {
   if (value === undefined) return [];
   if (!Array.isArray(value)) throw apiError(400, 'Prerequisites must be an array of movie IDs.');
-  if (value.some((id) => !Number.isInteger(Number(id)) || Number(id) < 1)) {
+  let ids;
+  try {
+    ids = value.map((id) => integer(id, 'Prerequisite ID', 1, Number.MAX_SAFE_INTEGER));
+  } catch {
     throw apiError(400, 'Prerequisite IDs must be positive whole numbers.');
   }
-
-  const ids = value.map(Number);
   if (new Set(ids).size !== ids.length) {
     throw apiError(400, 'Prerequisites cannot contain duplicates.');
   }
@@ -118,7 +122,7 @@ app.post('/api/movies', asyncRoute(async (request, response) => {
   const client = await pool.connect();
   try {
     const title = requiredText(request.body.title, 'Title');
-    const releaseYear = integer(request.body.releaseYear, 'Release year', Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+    const releaseYear = integer(request.body.releaseYear, 'Release year', 1888, 2200);
     const runtime = integer(request.body.runtime, 'Runtime', 1, 300);
     const watched = watchedValue(request.body.watched);
     const prerequisites = prerequisiteIds(request.body.prerequisites);
@@ -161,7 +165,7 @@ app.patch('/api/movies/:id', asyncRoute(async (request, response) => {
     const title = request.body.title === undefined ? movie.title : requiredText(request.body.title, 'Title');
     const releaseYear = request.body.releaseYear === undefined
       ? movie.release_year
-      : integer(request.body.releaseYear, 'Release year', Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER);
+      : integer(request.body.releaseYear, 'Release year', 1888, 2200);
     const runtime = request.body.runtime === undefined ? movie.runtime : integer(request.body.runtime, 'Runtime', 1, 300);
     const watched = watchedValue(request.body.watched, movie.watched);
     const prerequisites = request.body.prerequisites === undefined
@@ -299,10 +303,7 @@ app.post('/api/cinemas', asyncRoute(async (request, response) => {
     if (!Array.isArray(sizes) || sizes.length < 1 || sizes.length > 10) {
       throw apiError(400, 'A cinema needs between 1 and 10 bundle sizes.');
     }
-    if (sizes.some((size) => !Number.isInteger(Number(size)) || Number(size) < 1 || Number(size) > 500)) {
-      throw apiError(400, 'Each bundle size must be a whole number from 1 to 500.');
-    }
-    const bundleSizes = sizes.map(Number);
+    const bundleSizes = sizes.map((size) => integer(size, 'Each bundle size', 1, 500));
     if (new Set(bundleSizes).size !== bundleSizes.length) {
       throw apiError(400, 'Bundle sizes must be different.');
     }
