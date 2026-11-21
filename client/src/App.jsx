@@ -1,21 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 
-const posters = {
-  'Iron Man': 'iron-man.jpg',
-  'Captain America: The First Avenger': 'captain-america-the-first-avenger.jpg',
-  'The Avengers': 'the-avengers.jpg',
-  'Captain America: Civil War': 'captain-america-civil-war.jpg',
-  'Thor: Ragnarok': 'thor-ragnarok.jpg',
-  'Avengers: Infinity War': 'avengers-infinity-war.jpg',
-  'Avengers: Endgame': 'avengers-endgame.jpg',
-  'Avengers: Doomsday': 'avengers-doomsday.jpg',
-};
-
-const posterUrl = (movie) => {
-  const file = posters[movie?.title];
-  return file ? `/posters/${file}` : '';
-};
 const duration = (minutes) => `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 const pageLinks = [
   { title: 'Movies', href: '/' },
@@ -188,8 +173,6 @@ export default function App({ initialView = 'Movies' }) {
       {busy ? <p className="loading-note">Loading your movies…</p> : <div ref={viewRef} key={view}>
         {view === 'Movies' && <section aria-labelledby="movies-title">
           <div className="hero-wrap" data-enter>
-            <div className="hero-image" role="img" aria-label="Avengers: Doomsday poster" style={{ backgroundImage: `url(${posterUrl({ title: 'Avengers: Doomsday' })})` }} />
-            <div className="hero-shade" />
             <div className="hero-copy"><span className="eyebrow">DOOMSDAY READY</span><h1 id="movies-title"><span>Avengers:</span><em>Doomsday.</em></h1><p>Get the stories in order before opening night.</p><a className="hero-button" href="/rewatch.html">Build your rewatch plan</a></div>
           </div>
 
@@ -199,7 +182,7 @@ export default function App({ initialView = 'Movies' }) {
           </form></details>
 
           {movies.length ? <div className="poster-grid">{movies.map((movie) => <article className="poster-card" key={movie.id} data-enter>
-            <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} disabled={savingWatched.has(movie.id)} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
+            <div className="poster-image"><span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} disabled={savingWatched.has(movie.id)} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
             <h3>{movie.title}</h3><p className="poster-meta">{movie.releaseYear} <i /> {duration(movie.runtime)}</p>
             <details className="prerequisite-details" open={editingId === movie.id} onToggle={(event) => { if (event.currentTarget.open && editingId !== movie.id) { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); } else if (!event.currentTarget.open && editingId === movie.id) setEditingId(null); }}><summary>Edit prerequisites</summary><form onSubmit={(event) => savePrerequisites(event, movie.id)}><div className="prerequisite-options">{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</div><button className="red-button">Save</button></form></details>
             <button className="red-button" type="button" onClick={() => deleteMovie(movie)}>Delete</button>
