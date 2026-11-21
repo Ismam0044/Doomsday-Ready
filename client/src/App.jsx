@@ -33,7 +33,7 @@ export default function App({ initialView = 'Movies' }) {
   const [groupSize, setGroupSize] = useState('6');
   const [quote, setQuote] = useState(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(true);
   const [savingWatched, setSavingWatched] = useState(() => new Set());
   const [editingId, setEditingId] = useState(null);
   const [draftPrerequisites, setDraftPrerequisites] = useState([]);
@@ -59,7 +59,10 @@ export default function App({ initialView = 'Movies' }) {
   useEffect(() => { refresh(true); }, []);
   useEffect(() => {
     if (view !== 'Rewatch Plan' || !targetId) return setPlan(null);
-    api(`/movies/${targetId}/rewatch-order`).then(setPlan).catch((problem) => setError(problem.message));
+    api(`/movies/${targetId}/rewatch-order`).then((result) => {
+      setPlan(result);
+      setError('');
+    }).catch((problem) => setError(problem.message));
   }, [view, targetId]);
   useEffect(() => {
     const scope = viewRef.current;
@@ -118,6 +121,7 @@ export default function App({ initialView = 'Movies' }) {
     });
     try {
       await api(`/movies/${movie.id}`, { method: 'PATCH', body: JSON.stringify({ watched }) });
+      setError('');
     } catch (problem) {
       setMovies((current) => current.map((item) => item.id === movie.id ? { ...item, watched: movie.watched } : item));
       setPlan((current) => {
@@ -155,7 +159,10 @@ export default function App({ initialView = 'Movies' }) {
   }
   async function getQuote(event) {
     event.preventDefault(); setQuote(null);
-    try { setQuote(await api(`/cinemas/${cinemaId}/booking?groupSize=${groupSize}`)); }
+    try {
+      setQuote(await api(`/cinemas/${cinemaId}/booking?groupSize=${groupSize}`));
+      setError('');
+    }
     catch (problem) { setError(problem.message); }
   }
   function tap(event) {
