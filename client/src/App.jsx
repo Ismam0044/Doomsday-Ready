@@ -49,6 +49,7 @@ export default function App({ initialView = 'Movies' }) {
   const [quote, setQuote] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [savingWatched, setSavingWatched] = useState(() => new Set());
   const [editingId, setEditingId] = useState(null);
   const [draftPrerequisites, setDraftPrerequisites] = useState([]);
   const viewRef = useRef(null);
@@ -74,7 +75,7 @@ export default function App({ initialView = 'Movies' }) {
   useEffect(() => {
     if (view !== 'Rewatch Plan' || !targetId) return setPlan(null);
     api(`/movies/${targetId}/rewatch-order`).then(setPlan).catch((problem) => setError(problem.message));
-  }, [view, targetId, movies]);
+  }, [view, targetId]);
   useEffect(() => {
     const scope = viewRef.current;
     if (!scope) return undefined;
@@ -89,7 +90,7 @@ export default function App({ initialView = 'Movies' }) {
       }, scope);
     } catch { return undefined; }
     return () => context.revert();
-  }, [view, busy, movies, plan, quote, editingId]);
+  }, [view, busy]);
 
   async function save(path, options) { await api(path, options); await refresh(); }
   async function addMovie(event) {
@@ -116,8 +117,42 @@ export default function App({ initialView = 'Movies' }) {
     } catch (problem) { setError(problem.message); }
   }
   async function toggleWatched(movie) {
-    try { await save(`/movies/${movie.id}`, { method: 'PATCH', body: JSON.stringify({ watched: !movie.watched }) }); }
-    catch (problem) { setError(problem.message); }
+    if (savingWatched.has(movie.id)) return;
+    const watched = !movie.watched;
+    setSavingWatched((current) => new Set(current).add(movie.id));
+    setMovies((current) => current.map((item) => item.id === movie.id ? { ...item, watched } : item));
+    setPlan((current) => {
+      if (!current) return current;
+      const planMovies = current.movies.map((item) => item.id === movie.id ? { ...item, watched } : item);
+      return {
+        ...current,
+        movies: planMovies,
+        watchedCount: planMovies.filter((item) => item.watched).length,
+        unwatchedRuntime: planMovies.filter((item) => !item.watched).reduce((total, item) => total + item.runtime, 0),
+      };
+    });
+    try {
+      await api(`/movies/${movie.id}`, { method: 'PATCH', body: JSON.stringify({ watched }) });
+    } catch (problem) {
+      setMovies((current) => current.map((item) => item.id === movie.id ? { ...item, watched: movie.watched } : item));
+      setPlan((current) => {
+        if (!current) return current;
+        const planMovies = current.movies.map((item) => item.id === movie.id ? { ...item, watched: movie.watched } : item);
+        return {
+          ...current,
+          movies: planMovies,
+          watchedCount: planMovies.filter((item) => item.watched).length,
+          unwatchedRuntime: planMovies.filter((item) => !item.watched).reduce((total, item) => total + item.runtime, 0),
+        };
+      });
+      setError(problem.message);
+    } finally {
+      setSavingWatched((current) => {
+        const next = new Set(current);
+        next.delete(movie.id);
+        return next;
+      });
+    }
   }
   async function deleteMovie(movie) {
     if (!window.confirm(`Delete “${movie.title}”? This can’t be undone.`)) return;
@@ -164,7 +199,7 @@ export default function App({ initialView = 'Movies' }) {
           </form></details>
 
           {movies.length ? <div className="poster-grid">{movies.map((movie) => <article className="poster-card" key={movie.id} data-enter>
-            <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
+            <div className="poster-image">{posterUrl(movie) && <img src={posterUrl(movie)} alt={`${movie.title} poster`} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}<span className="poster-fallback">{movie.title}</span><button className={`poster-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} disabled={savingWatched.has(movie.id)} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button></div>
             <h3>{movie.title}</h3><p className="poster-meta">{movie.releaseYear} <i /> {duration(movie.runtime)}</p>
             <details className="prerequisite-details" open={editingId === movie.id} onToggle={(event) => { if (event.currentTarget.open && editingId !== movie.id) { setEditingId(movie.id); setDraftPrerequisites(movie.prerequisites); } else if (!event.currentTarget.open && editingId === movie.id) setEditingId(null); }}><summary>Edit prerequisites</summary><form onSubmit={(event) => savePrerequisites(event, movie.id)}><div className="prerequisite-options">{movies.filter((candidate) => candidate.id !== movie.id).map((candidate) => <label key={candidate.id}><input type="checkbox" checked={draftPrerequisites.includes(candidate.id)} onChange={(event) => setDraftPrerequisites((current) => event.target.checked ? [...current, candidate.id] : current.filter((id) => id !== candidate.id))} />{candidate.title}</label>)}</div><button className="red-button">Save</button></form></details>
             <button className="red-button" type="button" onClick={() => deleteMovie(movie)}>Delete</button>
@@ -176,7 +211,7 @@ export default function App({ initialView = 'Movies' }) {
           <label className="field-row">Target movie<select value={targetId} onChange={(event) => setTargetId(event.target.value)}>{movies.map((movie) => <option key={movie.id} value={movie.id}>{movie.title}</option>)}</select></label>
           {!movies.length && <p className="empty-state">Add movies to your collection to make a plan.</p>}
           {plan && <><div className="plan-summary"><div className="plan-numbers"><div><span>WATCHED</span><strong>{plan.watchedCount} of {plan.totalCount}</strong></div><div><span>TIME LEFT</span><strong>{duration(plan.unwatchedRuntime)}</strong></div></div><div className="progress-track" role="progressbar" aria-label="Rewatch progress" aria-valuemin="0" aria-valuemax={Math.max(plan.totalCount, 1)} aria-valuenow={plan.watchedCount}><span style={{ width: `${plan.totalCount ? plan.watchedCount / plan.totalCount * 100 : 0}%` }} /></div></div>
-            {plan.movies.length ? <ol className="rewatch-list">{plan.movies.map((movie) => <li key={movie.id}><button className={`watched-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button><div><h2>{movie.title}</h2><p>{movie.releaseYear} · {duration(movie.runtime)}</p></div><span>{movie.watched ? 'WATCHED' : 'TO WATCH'}</span></li>)}</ol> : <p className="empty-state">No earlier movies in this plan.</p>}
+            {plan.movies.length ? <ol className="rewatch-list">{plan.movies.map((movie) => <li key={movie.id}><button className={`watched-check ${movie.watched ? 'checked' : ''}`} aria-label={`Mark ${movie.title} ${movie.watched ? 'unwatched' : 'watched'}`} disabled={savingWatched.has(movie.id)} onClick={() => toggleWatched(movie)}>{movie.watched ? '✓' : ''}</button><div><h2>{movie.title}</h2><p>{movie.releaseYear} · {duration(movie.runtime)}</p></div><span>{movie.watched ? 'WATCHED' : 'TO WATCH'}</span></li>)}</ol> : <p className="empty-state">No earlier movies in this plan.</p>}
             <p className="plan-target">Then: <strong>{plan.target.title}</strong></p>
           </>}
         </section>}
