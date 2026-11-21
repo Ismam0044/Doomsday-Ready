@@ -2,7 +2,7 @@
 
 A movie rewatch planner and cinema bundle calculator built for the Blinto full stack assessment.
 
-The client uses React, Vite, Tailwind CSS, and GSAP. Its theatre-inspired film presentation takes cues from the film-first marquee on the [TCL Chinese Theatres site](https://www.tclchinesetheatres.com/).
+The client uses React, Vite, Tailwind CSS, and GSAP.
 
 ## Run it
 
@@ -15,10 +15,6 @@ Requirements: Node.js 20 or newer and an existing Neon PostgreSQL database.
 5. Run the logic and expected-results checks with `npm test`. Run the frontend production build with `npm run build`.
 
 The API listens on port 3001. The Vite development server forwards `/api` requests to it. `npm start` starts the API outside development. The database remains on Neon.
-
-## Movie posters
-
-Place your poster artwork in `client/public/posters` using these filenames: `iron-man.jpg`, `captain-america-the-first-avenger.jpg`, `the-avengers.jpg`, `captain-america-civil-war.jpg`, `thor-ragnarok.jpg`, `avengers-infinity-war.jpg`, `avengers-endgame.jpg`, and `avengers-doomsday.jpg`. The app serves those local images directly; missing posters use a title treatment until you add the files.
 
 ## Assessment API
 
@@ -64,14 +60,14 @@ erDiagram
 ## Assumptions
 
 - The assessment gives no release-year limits or runtimes for its example movies. Whole years are accepted, and the sample runtime/year values are set in `server/src/sample-data.js` to make the rewatch plan and remaining-time display usable. The year 2026 and 180 minute runtime for *Avengers: Doomsday* are assumptions.
-- Prerequisites can be changed when creating or editing a movie through the API. On the Movies view, prerequisites are selected when adding a movie.
+- Prerequisites can be changed when creating or editing a movie through the API. On the Movies view, you can select prerequisites when adding a movie and edit them later.
 - If several valid prerequisite orders exist, the implementation returns a valid depth-first order. Bundle ties use the first minimum solution found by the dynamic program.
 - Unique text values follow PostgreSQL's default case-sensitive comparison.
 - Movie prerequisite foreign keys use `ON DELETE NO ACTION`; deleting a movie explicitly removes only its own prerequisite links after confirming no other movie depends on it. The database never cascades prerequisite-link deletion.
 
 ## AI tools
 
-AI assistance was used to inspect the assessment, plan the implementation, draft code, and review the expected results. The graph traversal, cycle check, and bundle algorithm are explicit JavaScript written for this project. Please review the implementation and make sure you can explain it as part of your submission.
+AI assistance was used to inspect the assessment, plan the implementation, draft code, and review the expected results. The graph traversal, cycle check, and bundle algorithm are explicit JavaScript written for this project.
 
 ## Docker Compose bonus
 
