@@ -56,6 +56,73 @@ async function withMovieDatabase({ movieExists = true, isPrerequisite = false } 
   }
 }
 
+async function withMockedPool(query, run) {
+  const originalConnect = pool.connect;
+  const originalQuery = pool.query;
+  const statements = [];
+  const mockQuery = async (sql, values = []) => {
+    const statement = String(sql).replace(/\s+/g, ' ').trim();
+    statements.push({ statement, values });
+    return query(statement, values);
+  };
+
+  pool.connect = async () => ({ query: mockQuery, release() {} });
+  pool.query = mockQuery;
+  try {
+    await run(statements);
+  } finally {
+    pool.connect = originalConnect;
+    pool.query = originalQuery;
+  }
+}
+
+async function withMovieWriteDatabase({ insertedId = 9, graphRows = [] } = {}, run) {
+  return withMockedPool((statement, values) => {
+    if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(statement)) return { rows: [], rowCount: null };
+    if (statement === 'SELECT * FROM movies WHERE id = $1') {
+      const movie = movies.find((item) => item.id === values[0]);
+      return {
+        rows: movie ? [{
+          id: movie.id,
+          title: movie.title,
+          release_year: movie.releaseYear,
+          runtime: movie.runtime,
+          watched: movie.watched,
+        }] : [],
+        rowCount: movie ? 1 : 0,
+      };
+    }
+    if (statement === 'SELECT id FROM movies WHERE id = ANY($1::int[])') {
+      const rows = values[0].map((id) => ({ id }));
+      return { rows, rowCount: rows.length };
+    }
+    if (statement.startsWith('INSERT INTO movies ')) return { rows: [{ id: insertedId }], rowCount: 1 };
+    if (statement === 'SELECT movie_id, prerequisite_id FROM movie_prerequisites') {
+      return { rows: graphRows, rowCount: graphRows.length };
+    }
+    if (statement.startsWith('UPDATE movies SET ')) return { rows: [], rowCount: 1 };
+    throw new Error(`Unexpected movie test query: ${statement}`);
+  }, run);
+}
+
+async function assertCircularResponse(response) {
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    error: 'This change would create a circular dependency.',
+    code: 'CIRCULAR_DEPENDENCY',
+  });
+}
+
+async function assertValidationResponse(response) {
+  assert.equal(response.status, 400);
+  assert.equal(typeof (await response.json()).error, 'string');
+}
+
+function rejectUnexpectedQuery(statement) {
+  if (statement === 'ROLLBACK') return { rows: [], rowCount: null };
+  throw new Error(`Validation unexpectedly queried the database: ${statement}`);
+}
+
 after(async () => {
   if (server) await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 });
@@ -159,6 +226,106 @@ test('an unknown API route returns a JSON 404 response', async () => {
   assert.equal(response.status, 404);
   assert.match(response.headers.get('content-type'), /application\/json/);
   assert.deepEqual(await response.json(), { error: 'API endpoint not found.' });
+});
+
+test('POST /api/movies returns CIRCULAR_DEPENDENCY for a self prerequisite', async () => {
+  await withMovieWriteDatabase({ insertedId: 1 }, async () => {
+    const response = await fetch(`${apiUrl}/api/movies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'TEST self', releaseYear: 2026, runtime: 100, prerequisites: [1] }),
+    });
+    await assertCircularResponse(response);
+  });
+});
+
+test('PATCH /api/movies/:id returns CIRCULAR_DEPENDENCY for a self prerequisite', async () => {
+  await withMovieWriteDatabase({}, async () => {
+    const response = await fetch(`${apiUrl}/api/movies/1`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prerequisites: [1] }),
+    });
+    await assertCircularResponse(response);
+  });
+});
+
+test('PATCH /api/movies/:id returns CIRCULAR_DEPENDENCY for a direct two-movie loop', async () => {
+  await withMovieWriteDatabase({ graphRows: [{ movie_id: 2, prerequisite_id: 1 }] }, async () => {
+    const response = await fetch(`${apiUrl}/api/movies/1`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prerequisites: [2] }),
+    });
+    await assertCircularResponse(response);
+  });
+});
+
+test('PATCH rejects making Endgame a prerequisite of Iron Man', async () => {
+  await withMovieWriteDatabase({ graphRows: prerequisiteRows }, async () => {
+    const ironManId = idByTitle.get('Iron Man');
+    const endgameId = idByTitle.get('Avengers: Endgame');
+    const response = await fetch(`${apiUrl}/api/movies/${ironManId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prerequisites: [endgameId] }),
+    });
+    await assertCircularResponse(response);
+  });
+});
+
+test('movie API rejects runtime 0 and 301 with HTTP 400', async () => {
+  await withMockedPool(rejectUnexpectedQuery, async () => {
+    for (const runtime of [0, 301]) {
+      const response = await fetch(`${apiUrl}/api/movies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `TEST runtime ${runtime}`, releaseYear: 2026, runtime }),
+      });
+      await assertValidationResponse(response);
+    }
+  });
+});
+
+test('movie API rejects null, empty and boolean release years with HTTP 400', async () => {
+  await withMockedPool(rejectUnexpectedQuery, async () => {
+    for (const releaseYear of [null, '', true]) {
+      const response = await fetch(`${apiUrl}/api/movies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'TEST invalid year', releaseYear, runtime: 100 }),
+      });
+      await assertValidationResponse(response);
+    }
+  });
+});
+
+test('cinema API rejects 11 bundle sizes and bundle sizes 0, 501 and true', async () => {
+  await withMockedPool(rejectUnexpectedQuery, async () => {
+    const invalidSizes = [
+      Array.from({ length: 11 }, (_, index) => index + 1),
+      [0],
+      [501],
+      [true],
+    ];
+    for (const bundleSizes of invalidSizes) {
+      const response = await fetch(`${apiUrl}/api/cinemas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'TEST validation cinema', bundleSizes }),
+      });
+      await assertValidationResponse(response);
+    }
+  });
+});
+
+test('booking API rejects group sizes 0 and 10001 with HTTP 400', async () => {
+  await withMockedPool(() => { throw new Error('Validation unexpectedly queried the database.'); }, async () => {
+    for (const groupSize of [0, 10001]) {
+      const response = await fetch(`${apiUrl}/api/cinemas/1/booking?groupSize=${groupSize}`);
+      await assertValidationResponse(response);
+    }
+  });
 });
 
 test('DELETE /api/movies/:id returns 204 and explicitly removes its own prerequisite links', async () => {
